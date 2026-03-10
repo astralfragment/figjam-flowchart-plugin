@@ -1,0 +1,42 @@
+{
+  "name": "legendflow-manager",
+  "version": "0.1.0",
+  "private": true,
+  "description": "LegendFlow Manager (GridMarshal) FigJam plugin",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "npm run clean && npm run build:ui && npm run build:main",
+    "build:ui": "vite build",
+    "build:main": "node scripts/build-main.mjs",
+    "clean": "rimraf dist",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@fontsource/ibm-plex-mono": "^5.1.1",
+    "@fontsource/ibm-plex-sans": "^5.1.1",
+    "@fontsource/outfit": "^5.2.8",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@figma/plugin-typings": "^1.112.0",
+    "@types/react": "^18.3.20",
+    "@types/react-dom": "^18.3.6",
+    "@typescript-eslint/eslint-plugin": "^8.29.0",
+    "@typescript-eslint/parser": "^8.29.0",
+    "@vitejs/plugin-react": "^4.4.1",
+    "esbuild": "^0.25.1",
+    "eslint": "^9.24.0",
+    "eslint-config-prettier": "^10.1.1",
+    "prettier": "^3.5.3",
+    "rimraf": "^6.0.1",
+    "typescript": "^5.8.2",
+    "vite": "^5.4.14",
+    "vite-plugin-singlefile": "^2.3.0",
+    "vitest": "^3.0.9"
+  }
+}
