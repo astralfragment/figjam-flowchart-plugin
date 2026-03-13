@@ -210,7 +210,7 @@ export const LegendPanelV2 = ({
               </label>
 
               <div className="btn-row">
-                <button onClick={() => onAssignShape(editingShape.id, [])}>Assign to Selected</button>
+                <button onClick={() => onAssignShape(editingShape.id, [])}>Tag Selected Shapes</button>
                 <button className="danger" onClick={() => { onShapeDelete(editingShape.id); setEditingShapeId(null); }}>Delete</button>
               </div>
             </div>
@@ -259,7 +259,7 @@ export const LegendPanelV2 = ({
               <ColorField label="Text Color" value={editingSystem.textColor} fallback="#FFFFFF" onChange={(v) => onSystemUpsert({ ...editingSystem, textColor: v })} />
 
               <div className="btn-row">
-                <button onClick={() => onAssignSystem(editingSystem.id, [])}>Assign to Selected</button>
+                <button onClick={() => onAssignSystem(editingSystem.id, [])}>Tag Selected Shapes</button>
                 <button className="danger" onClick={() => { onSystemDelete(editingSystem.id); setEditingSystemId(null); }}>Delete</button>
               </div>
             </div>
@@ -275,10 +275,14 @@ export const LegendPanelV2 = ({
         </div>
       )}
 
-      {/* Apply */}
+      {/* Apply — applies all legend entry styles to matching shapes */}
       <div className="action-bar">
-        <button className="primary" onClick={() => onApplyLegend("selection")}>Apply to Selection</button>
-        <button onClick={() => onApplyLegend("board")}>Apply to Board</button>
+        <button className="primary" onClick={() => onApplyLegend("selection")} title="Apply legend styles to currently selected shapes">
+          Style Selection
+        </button>
+        <button onClick={() => onApplyLegend("board")} title="Apply legend styles to all shapes on the board">
+          Style Entire Board
+        </button>
       </div>
     </div>
   );

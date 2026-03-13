@@ -40,13 +40,6 @@ const defaultOrganizeConfigV2: OrganizeConfigV2 = {
 
 const WINDOW_STORAGE_KEY = "legendflow.window-size.v2";
 const DEFAULT_WINDOW_SIZE = { width: 560, height: 820 };
-const WINDOW_PRESETS = [
-  { key: "compact", label: "Compact", width: 460, height: 700 },
-  { key: "standard", label: "Standard", width: 560, height: 820 },
-  { key: "wide", label: "Wide", width: 760, height: 920 }
-] as const;
-type WindowPresetKey = (typeof WINDOW_PRESETS)[number]["key"];
-
 const clamp = (value: number, min: number, max: number): number =>
   Math.min(max, Math.max(min, value));
 
@@ -69,19 +62,6 @@ const saveStoredWindowSize = (width: number, height: number): void => {
   } catch {
     /* noop */
   }
-};
-
-const nearestPresetKey = (size: { width: number; height: number }): WindowPresetKey => {
-  let winner: (typeof WINDOW_PRESETS)[number] = WINDOW_PRESETS[0];
-  let bestDistance = Number.POSITIVE_INFINITY;
-  for (const preset of WINDOW_PRESETS) {
-    const distance = Math.abs(size.width - preset.width) + Math.abs(size.height - preset.height);
-    if (distance < bestDistance) {
-      bestDistance = distance;
-      winner = preset;
-    }
-  }
-  return winner.key;
 };
 
 const post = (message: UIToMainV2): void => {
@@ -109,9 +89,6 @@ export const App = (): JSX.Element => {
   const [organizeConfig, setOrganizeConfig] = useState<OrganizeConfigV2>(defaultOrganizeConfigV2);
   const [organizeDiagnostics, setOrganizeDiagnostics] = useState<OrganizeDiagnosticsV2 | null>(null);
   const [windowSize, setWindowSize] = useState(loadStoredWindowSize);
-  const [windowPresetKey, setWindowPresetKey] = useState<WindowPresetKey>(() =>
-    nearestPresetKey(loadStoredWindowSize())
-  );
 
   useEffect(() => {
     window.onmessage = (event: MessageEvent<{ pluginMessage: MainToUIV2 }>) => {
@@ -153,7 +130,6 @@ export const App = (): JSX.Element => {
     const w = clamp(Math.round(s.width), 380, 960);
     const h = clamp(Math.round(s.height), 560, 1200);
     setWindowSize({ width: w, height: h });
-    setWindowPresetKey(nearestPresetKey({ width: w, height: h }));
     saveStoredWindowSize(w, h);
     post({ type: "RESIZE_UI", width: w, height: h });
     setValidationError(null);
@@ -196,31 +172,18 @@ export const App = (): JSX.Element => {
       <header className="topbar">
         <div className="brand">
           <h1>LegendFlow</h1>
-          <span className="tag">V2</span>
         </div>
         <div className="topbar-actions">
-          <button onClick={() => post({ type: "EXPORT_PRESETS_V2" })} title="Export presets">
+          <button className="sm" onClick={() => post({ type: "EXPORT_PRESETS_V2" })} title="Export legend presets as JSON">
             Export
           </button>
           <label className="file-input">
-            <button>Import</button>
+            <button className="sm">Import</button>
             <input type="file" accept="application/json" onChange={onImportBundle} />
           </label>
-          <button onClick={themeToggle} title="Toggle theme">
+          <button className="icon-btn" onClick={themeToggle} title={state.themeMode === "light" ? "Switch to dark mode" : "Switch to light mode"}>
             {state.themeMode === "light" ? "\u263E" : "\u2600"}
           </button>
-          <div className="size-group">
-            {WINDOW_PRESETS.map((p) => (
-              <button
-                key={p.key}
-                className={windowPresetKey === p.key ? "active" : ""}
-                onClick={() => applyWindowSize({ width: p.width, height: p.height })}
-                title={`${p.label} (${p.width}\u00d7${p.height})`}
-              >
-                {p.label[0]}
-              </button>
-            ))}
-          </div>
         </div>
       </header>
 
