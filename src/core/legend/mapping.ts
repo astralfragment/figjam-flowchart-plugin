@@ -3,23 +3,29 @@ import { applyConnectorPresetToConnector } from "@core/connectors/applyConnector
 import { applyShapePresetToNode } from "@core/styles/applyShapeStyle";
 import type { ActionResult, ApplyScope, LegendCategory, PluginStateV1 } from "@shared/types";
 
+const sortCategories = (categories: LegendCategory[]): LegendCategory[] =>
+  [...categories].sort((a, b) => a.order - b.order || a.label.localeCompare(b.label));
+
+const normalizeCategoryOrders = (categories: LegendCategory[]): LegendCategory[] =>
+  sortCategories(categories).map((category, index) => ({
+    ...category,
+    order: index + 1
+  }));
+
 export const upsertCategory = (state: PluginStateV1, category: LegendCategory): PluginStateV1 => {
   const index = state.categories.findIndex((item) => item.id === category.id);
   if (index === -1) {
     return {
       ...state,
-      categories: [...state.categories, category].sort(
-        (a, b) => a.order - b.order || a.label.localeCompare(b.label)
-      )
+      categories: normalizeCategoryOrders([...state.categories, category])
     };
   }
 
   const next = [...state.categories];
   next[index] = category;
-  next.sort((a, b) => a.order - b.order || a.label.localeCompare(b.label));
   return {
     ...state,
-    categories: next
+    categories: normalizeCategoryOrders(next)
   };
 };
 
@@ -33,7 +39,7 @@ export const deleteCategory = (state: PluginStateV1, categoryId: string): Plugin
 
   return {
     ...state,
-    categories: state.categories.filter((category) => category.id !== categoryId),
+    categories: normalizeCategoryOrders(state.categories.filter((category) => category.id !== categoryId)),
     nodeCategoryAssignments: assignments
   };
 };
@@ -55,13 +61,58 @@ export const assignCategoryToNodes = (
   };
 };
 
+export const unassignCategoryFromNodes = (state: PluginStateV1, nodeIds: string[]): PluginStateV1 => {
+  if (nodeIds.length === 0) {
+    return state;
+  }
+
+  const assignments = { ...state.nodeCategoryAssignments };
+  for (const nodeId of nodeIds) {
+    delete assignments[nodeId];
+  }
+
+  return {
+    ...state,
+    nodeCategoryAssignments: assignments
+  };
+};
+
+export const moveCategory = (
+  state: PluginStateV1,
+  categoryId: string,
+  direction: "up" | "down"
+): PluginStateV1 => {
+  const ordered = normalizeCategoryOrders(state.categories);
+  const index = ordered.findIndex((category) => category.id === categoryId);
+  if (index === -1) {
+    return state;
+  }
+
+  const targetIndex = direction === "up" ? index - 1 : index + 1;
+  if (targetIndex < 0 || targetIndex >= ordered.length) {
+    return state;
+  }
+
+  const next = [...ordered];
+  const [moving] = next.splice(index, 1);
+  next.splice(targetIndex, 0, moving);
+
+  return {
+    ...state,
+    categories: next.map((category, orderIndex) => ({
+      ...category,
+      order: orderIndex + 1
+    }))
+  };
+};
+
 const getConnectorNodeIds = (connector: ConnectorNode): string[] => {
   const ids: string[] = [];
-  if (connector.connectorStart.endpointNodeId) {
+  if ("endpointNodeId" in connector.connectorStart && connector.connectorStart.endpointNodeId) {
     ids.push(connector.connectorStart.endpointNodeId);
   }
 
-  if (connector.connectorEnd.endpointNodeId) {
+  if ("endpointNodeId" in connector.connectorEnd && connector.connectorEnd.endpointNodeId) {
     ids.push(connector.connectorEnd.endpointNodeId);
   }
 

@@ -10,6 +10,7 @@ export const applyConnectorPresetToConnector = (
   connector.strokeWeight = preset.strokeWidth;
   connector.opacity = preset.opacity;
   connector.dashPattern = lineStyleToDashPattern(preset.lineStyle);
+  connector.connectorLineType = preset.pathType;
   connector.connectorStartStrokeCap = arrowCapToConnectorCap(preset.arrowStart);
   connector.connectorEndStrokeCap = arrowCapToConnectorCap(preset.arrowEnd);
   return 1;

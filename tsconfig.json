@@ -9,7 +9,7 @@
     "noFallthroughCasesInSwitch": true,
     "forceConsistentCasingInFileNames": true,
     "skipLibCheck": true,
-    "types": ["@figma/plugin-typings", "vite/client", "vitest/globals"],
+    "types": ["@figma/plugin-typings", "vite/client", "vitest/globals", "node"],
     "baseUrl": ".",
     "paths": {
       "@core/*": ["src/core/*"],
