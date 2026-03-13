@@ -10,6 +10,7 @@ import type {
   PluginStateV1,
   PluginStateV2,
   PresetBundleV1,
+  NodeAssignments,
   ShapeLegendEntry,
   ShapeStylePreset,
   SystemLegendEntry
@@ -367,18 +368,18 @@ export const sanitizeStateV2 = (raw: unknown): PluginStateV2 => {
     ? raw.shapeEntries.map(normalizeShapeEntry).filter((e): e is ShapeLegendEntry => e !== null)
     : [];
 
-  const nodeAssignments = isObject(raw.nodeAssignments)
+  const nodeAssignments: NodeAssignments = isObject(raw.nodeAssignments)
     ? {
         system: isObject((raw.nodeAssignments as Record<string, unknown>).system)
           ? Object.fromEntries(
               Object.entries((raw.nodeAssignments as Record<string, unknown>).system as Record<string, unknown>)
-                .filter(([, v]) => typeof v === "string")
+                .filter((entry): entry is [string, string] => typeof entry[1] === "string")
             )
           : {},
         shape: isObject((raw.nodeAssignments as Record<string, unknown>).shape)
           ? Object.fromEntries(
               Object.entries((raw.nodeAssignments as Record<string, unknown>).shape as Record<string, unknown>)
-                .filter(([, v]) => typeof v === "string")
+                .filter((entry): entry is [string, string] => typeof entry[1] === "string")
             )
           : {}
       }

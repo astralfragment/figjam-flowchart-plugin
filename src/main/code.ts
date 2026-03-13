@@ -157,7 +157,6 @@ const applyLegendV2 = async (scope: import("@shared/types").ApplyScope): Promise
         const textFills = [{ type: "SOLID" as const, color: hexToRGB(styleSource.textColor) }];
         node.text.fills = textFills;
         node.text.fontSize = styleSource.textSize;
-        node.text.fontWeight = styleSource.textWeight;
       }
 
       changed++;
@@ -196,8 +195,8 @@ const applyLegendV2 = async (scope: import("@shared/types").ApplyScope): Promise
       } else {
         connector.dashPattern = [];
       }
-      connector.connectorStartStrokeCap = entry.connectorArrowStart === "triangle" ? "TRIANGLE_FILLED" : entry.connectorArrowStart === "line" ? "STANDARD" : "NONE";
-      connector.connectorEndStrokeCap = entry.connectorArrowEnd === "triangle" ? "TRIANGLE_FILLED" : entry.connectorArrowEnd === "line" ? "STANDARD" : "NONE";
+      connector.connectorStartStrokeCap = entry.connectorArrowStart === "triangle" ? "TRIANGLE_FILLED" : entry.connectorArrowStart === "line" ? "ARROW_LINES" : "NONE";
+      connector.connectorEndStrokeCap = entry.connectorArrowEnd === "triangle" ? "TRIANGLE_FILLED" : entry.connectorArrowEnd === "line" ? "ARROW_LINES" : "NONE";
       changed++;
     } catch {
       skipped++;
