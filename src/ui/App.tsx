@@ -38,7 +38,7 @@ const defaultOrganizeConfigV2: OrganizeConfigV2 = {
   autoFixCrossings: true
 };
 
-const WINDOW_STORAGE_KEY = "legendflow.window-size.v2";
+const WINDOW_STORAGE_KEY = "flowforge.window-size.v2";
 const DEFAULT_WINDOW_SIZE = { width: 560, height: 820 };
 const clamp = (value: number, min: number, max: number): number =>
   Math.min(max, Math.max(min, value));
@@ -104,7 +104,7 @@ export const App = (): JSX.Element => {
       if (msg.type === "ACTION_RESULT") {
         setLastResult(msg.result);
         setValidationError(null);
-        if (msg.result.exportJson) downloadJson("legendflow-presets-v2.json", msg.result.exportJson);
+        if (msg.result.exportJson) downloadJson("flowforge-presets.json", msg.result.exportJson);
       }
       if (msg.type === "VALIDATION_ERROR") {
         setValidationError(msg.error.message);
@@ -163,7 +163,7 @@ export const App = (): JSX.Element => {
   };
 
   if (!state) {
-    return <main className="app loading">Loading&hellip;</main>;
+    return <main className="app loading">FlowForge loading&hellip;</main>;
   }
 
   return (
@@ -171,7 +171,17 @@ export const App = (): JSX.Element => {
       {/* ── Header ── */}
       <header className="topbar">
         <div className="brand">
-          <h1>LegendFlow</h1>
+          <svg className="brand-mark" viewBox="0 0 20 20" width="20" height="20" fill="none">
+            <rect x="1" y="1" width="7" height="7" rx="2" fill="var(--acc)" opacity=".85" />
+            <rect x="12" y="1" width="7" height="7" rx="2" fill="var(--acc)" opacity=".5" />
+            <rect x="1" y="12" width="7" height="7" rx="2" fill="var(--acc)" opacity=".5" />
+            <rect x="12" y="12" width="7" height="7" rx="2" fill="var(--acc)" opacity=".3" />
+            <path d="M8 4.5h4M4.5 8v4M15.5 8v4M8 15.5h4" stroke="var(--acc)" strokeWidth="1.2" strokeLinecap="round" opacity=".7" />
+          </svg>
+          <div className="brand-text">
+            <h1>FlowForge</h1>
+            <span className="brand-tagline">Diagram organizer</span>
+          </div>
         </div>
         <div className="topbar-actions">
           <button className="sm" onClick={() => post({ type: "EXPORT_PRESETS_V2" })} title="Export legend presets as JSON">

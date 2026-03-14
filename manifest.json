@@ -1,6 +1,6 @@
 {
-  "name": "LegendFlow Manager",
-  "id": "legendflow-manager-gridmarshal",
+  "name": "FlowForge",
+  "id": "flowforge-figjam",
   "api": "1.0.0",
   "main": "dist/code.js",
   "ui": "dist/ui.html",

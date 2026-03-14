@@ -1,8 +1,8 @@
 {
-  "name": "legendflow-manager",
-  "version": "0.1.0",
+  "name": "flowforge-figjam",
+  "version": "0.2.0",
   "private": true,
-  "description": "LegendFlow Manager (GridMarshal) FigJam plugin",
+  "description": "FlowForge — smart flowchart organizer for FigJam",
   "license": "MIT",
   "type": "module",
   "scripts": {
