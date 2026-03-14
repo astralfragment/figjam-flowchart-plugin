@@ -553,6 +553,162 @@ button.icon-btn:hover { color: var(--t0); }
 }
 .diagnostics-grid .diag-highlight strong { color: var(--ok); }
 
+/* ═══════════════════════════════════════════════════════
+   Quick Actions & Bulk Ops
+   ═══════════════════════════════════════════════════════ */
+
+.quick-actions-bar {
+  display: flex; gap: 4px; flex-wrap: wrap;
+}
+
+/* Bulk ops panel */
+.bulk-ops-panel {
+  padding: 10px; border-radius: var(--radius-md);
+  background: var(--s1); border: 1px solid var(--b1);
+  display: flex; flex-direction: column; gap: 8px;
+  animation: slideDown .15s var(--ease);
+}
+.bulk-ops-section {
+  display: flex; flex-direction: column; gap: 4px;
+}
+.bulk-label {
+  font-size: 9px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: .06em; color: var(--t3);
+}
+.bulk-chips {
+  display: flex; gap: 4px; flex-wrap: wrap;
+}
+.chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 8px; font-size: 9px; font-weight: 500;
+  border-radius: 99px; border: 1px solid var(--b2);
+  background: var(--s0); color: var(--t1);
+  cursor: pointer; transition: all .12s var(--ease);
+}
+.chip:hover {
+  border-color: var(--acc); color: var(--acc); background: var(--acc-dim);
+}
+.chip-dot {
+  width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+}
+
+/* Count badge */
+.count-badge {
+  font-size: 9px; font-weight: 700; min-width: 18px; text-align: center;
+  padding: 1px 5px; border-radius: 99px;
+  background: var(--acc-dim); color: var(--acc);
+}
+
+/* ═══════════════════════════════════════════════════════
+   Auto-Detect Results
+   ═══════════════════════════════════════════════════════ */
+
+.auto-detect-results {
+  padding: 10px; border-radius: var(--radius-lg);
+  background: var(--s0); border: 1px solid var(--acc);
+  box-shadow: 0 0 0 2px var(--acc-dim);
+  display: flex; flex-direction: column; gap: 6px;
+  animation: slideDown .2s var(--ease);
+}
+.auto-detect-header {
+  display: flex; align-items: center; justify-content: space-between;
+}
+.auto-detect-header strong {
+  font-size: 11px; color: var(--t0);
+}
+.auto-detect-stats {
+  display: flex; gap: 8px; font-size: 9.5px; color: var(--t2);
+  padding: 4px 0; border-bottom: 1px solid var(--b1);
+}
+.auto-detect-stats span {
+  padding: 2px 6px; border-radius: var(--radius-sm);
+  background: var(--s1); font-weight: 500;
+}
+
+.suggestion-card {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 8px; padding: 6px 8px; border-radius: var(--radius-md);
+  background: var(--s1); border: 1px solid var(--b1);
+  transition: all .12s var(--ease);
+}
+.suggestion-card:hover {
+  border-color: var(--b3);
+}
+.suggestion-info {
+  display: flex; align-items: center; gap: 8px; min-width: 0;
+}
+.suggestion-info strong {
+  font-size: 10px; color: var(--t0); display: block;
+}
+.suggestion-meta {
+  font-size: 8.5px; color: var(--t3); display: block;
+}
+
+/* Shape preview in edit form */
+.shape-preview-large {
+  display: flex; justify-content: center; padding: 6px 0;
+}
+
+/* ═══════════════════════════════════════════════════════
+   Scope Toggle & Organize Actions
+   ═══════════════════════════════════════════════════════ */
+
+.scope-toggle {
+  display: flex; gap: 0; border-radius: var(--radius-md);
+  overflow: hidden; border: 1px solid var(--b2);
+}
+.scope-btn {
+  flex: 1; padding: 7px 12px; font-size: 10px; font-weight: 500;
+  border: none; border-radius: 0; background: var(--s1);
+  color: var(--t2); cursor: pointer;
+  transition: all .12s var(--ease);
+}
+.scope-btn:hover { color: var(--t0); background: var(--s2); }
+.scope-btn.active {
+  background: var(--acc-dim); color: var(--acc); font-weight: 600;
+  box-shadow: inset 0 -2px 0 var(--acc);
+}
+
+.organize-actions {
+  display: flex; gap: 6px;
+}
+.organize-preview-btn {
+  flex: 0 0 auto; padding: 10px 18px; font-size: 11px; font-weight: 600;
+  border-radius: var(--radius-md);
+}
+.organize-run-btn {
+  flex: 1; padding: 10px; font-size: 12px; font-weight: 700;
+  letter-spacing: .01em; border-radius: var(--radius-md);
+}
+
+/* Connector icon in style cards */
+.connector-icon {
+  display: flex; align-items: center; justify-content: center;
+  min-height: 18px; margin-bottom: 2px;
+}
+
+/* Preview results */
+.preview-results {
+  padding: 10px; border-radius: var(--radius-md);
+  background: var(--teal-dim); border: 1px solid color-mix(in srgb, var(--teal) 20%, var(--b1));
+  display: flex; flex-direction: column; gap: 6px;
+  animation: slideDown .15s var(--ease);
+}
+.preview-header {
+  display: flex; align-items: center; justify-content: space-between;
+}
+.preview-header strong {
+  font-size: 11px; color: var(--t0);
+}
+.preview-hint {
+  margin: 0; font-size: 9px; color: var(--t3); text-align: center;
+}
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 /* ── Responsive ── */
 @media (max-width: 520px) {
   .split, .grid-2, .grid-3 { grid-template-columns: 1fr; }

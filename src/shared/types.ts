@@ -133,6 +133,33 @@ export interface DiagramScanResult {
   crossingCount: number;
 }
 
+export interface AutoDetectSuggestion {
+  kind: "shape" | "system";
+  name: string;
+  shapeType?: FigJamShapeType;
+  layoutRole?: LayoutRole;
+  fill: string;
+  stroke: string;
+  count: number;
+}
+
+export interface AutoDetectResult {
+  suggestions: AutoDetectSuggestion[];
+  totalShapes: number;
+  totalConnectors: number;
+  uniqueShapeTypes: number;
+  uniqueColors: number;
+}
+
+export interface OrganizePreviewResult {
+  wouldMove: number;
+  wouldSkip: number;
+  estimatedCrossings: number;
+  estimatedReduction: number;
+  componentCount: number;
+  boundingBox: { width: number; height: number };
+}
+
 export interface OrganizeDiagnosticsV2 {
   componentCount: number;
   decisionsDetected: number;

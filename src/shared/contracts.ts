@@ -1,10 +1,12 @@
 import type {
   ActionResult,
   ApplyScope,
+  AutoDetectResult,
   ConnectorStylePreset,
   LegendCategory,
   OrganizeConfig,
   OrganizeConfigV2,
+  OrganizePreviewResult,
   PluginStateV1,
   PluginStateV2,
   PresetBundleV1,
@@ -42,13 +44,27 @@ export type UIToMainV2 =
   | { type: "RUN_ORGANIZE_V2"; config: OrganizeConfigV2; scope: ApplyScope }
   // Import/Export
   | { type: "EXPORT_PRESETS_V2" }
-  | { type: "IMPORT_PRESETS_V2"; payload: PresetBundleV2 };
+  | { type: "IMPORT_PRESETS_V2"; payload: PresetBundleV2 }
+  // Auto-detect
+  | { type: "AUTO_DETECT_SCAN"; scope: ApplyScope }
+  // Organize preview
+  | { type: "ORGANIZE_PREVIEW"; config: OrganizeConfigV2; scope: ApplyScope }
+  // Bulk operations
+  | { type: "SELECT_BY_ROLE"; layoutRole: string }
+  | { type: "SELECT_UNMAPPED" }
+  | { type: "SELECT_BY_SYSTEM"; entryId: string }
+  | { type: "CLEAR_ALL_ASSIGNMENTS" }
+  // Duplicate entry
+  | { type: "DUPLICATE_SHAPE_ENTRY"; entryId: string }
+  | { type: "DUPLICATE_SYSTEM_ENTRY"; entryId: string };
 
 export type MainToUIV2 =
   | { type: "INIT_STATE_V2"; state: PluginStateV2 }
   | { type: "SELECTION_STATE_V2"; selection: SelectionSummaryV2 }
   | { type: "ACTION_RESULT"; result: ActionResult }
-  | { type: "VALIDATION_ERROR"; error: ValidationError };
+  | { type: "VALIDATION_ERROR"; error: ValidationError }
+  | { type: "AUTO_DETECT_RESULT"; result: AutoDetectResult }
+  | { type: "ORGANIZE_PREVIEW_RESULT"; result: OrganizePreviewResult };
 
 // ─── V1 Protocol (kept for migration) ───────────────────────────────
 

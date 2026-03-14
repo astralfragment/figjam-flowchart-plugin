@@ -1,6 +1,6 @@
 import { loadPluginStateV2, savePluginStateV2 } from "@core/persistence/storage";
 import type { MainToUIV2, UIToMainV2 } from "@shared/contracts";
-import type { ActionResult, LayoutRole, PluginStateV2, SelectionSummaryV2, ShapeLegendEntry, SystemLegendEntry } from "@shared/types";
+import type { ActionResult, AutoDetectResult, AutoDetectSuggestion, FigJamShapeType, LayoutRole, OrganizePreviewResult, PluginStateV2, SelectionSummaryV2, ShapeLegendEntry, SystemLegendEntry } from "@shared/types";
 
 declare const __UI_HTML__: string;
 
@@ -14,7 +14,7 @@ const clamp = (value: number, min: number, max: number): number =>
 
 figma.showUI(__UI_HTML__, {
   ...UI_SIZE,
-  title: "LegendFlow Manager"
+  title: "FlowForge"
 });
 
 let state = loadPluginStateV2();
@@ -608,6 +608,325 @@ figma.ui.onmessage = async (message: UIToMainV2): Promise<void> => {
         message: "Preset bundle imported.",
         changed: (message.payload.systemEntries?.length ?? 0) + (message.payload.shapeEntries?.length ?? 0),
         skipped: 0
+      });
+      return;
+    }
+
+    // ─── Auto-Detect ─────────────────────────────────────────
+    case "AUTO_DETECT_SCAN": {
+      const { getNodesInScope, isShapeNode, getConnectorNodes } = await import("@core/common/selection");
+      const scopedNodes = getNodesInScope(message.scope);
+      const shapeNodes = scopedNodes.filter(isShapeNode);
+      const connectors = getConnectorNodes(scopedNodes);
+
+      const shapeTypeCounts = new Map<string, number>();
+      const colorGroups = new Map<string, { fill: string; stroke: string; count: number }>();
+
+      for (const node of shapeNodes) {
+        // Count shape types
+        const st = node.shapeType;
+        shapeTypeCounts.set(st, (shapeTypeCounts.get(st) ?? 0) + 1);
+
+        // Group by fill color
+        const fills = node.fills as readonly SolidPaint[];
+        if (fills && fills.length > 0 && fills[0].type === "SOLID") {
+          const c = fills[0].color;
+          const hex = `#${Math.round(c.r * 255).toString(16).padStart(2, "0")}${Math.round(c.g * 255).toString(16).padStart(2, "0")}${Math.round(c.b * 255).toString(16).padStart(2, "0")}`.toUpperCase();
+          if (!colorGroups.has(hex)) {
+            // Get stroke color too
+            const strokes = node.strokes as readonly SolidPaint[];
+            let strokeHex = "#5C6B8A";
+            if (strokes && strokes.length > 0 && strokes[0].type === "SOLID") {
+              const sc = strokes[0].color;
+              strokeHex = `#${Math.round(sc.r * 255).toString(16).padStart(2, "0")}${Math.round(sc.g * 255).toString(16).padStart(2, "0")}${Math.round(sc.b * 255).toString(16).padStart(2, "0")}`.toUpperCase();
+            }
+            colorGroups.set(hex, { fill: hex, stroke: strokeHex, count: 0 });
+          }
+          colorGroups.get(hex)!.count++;
+        }
+      }
+
+      // Build suggestions
+      const SHAPE_ROLE_MAP: Partial<Record<string, LayoutRole>> = {
+        ELLIPSE: "entry",
+        DIAMOND: "decision",
+        PARALLELOGRAM_RIGHT: "io",
+        TRAPEZOID: "manual",
+        MANUAL_INPUT: "manual",
+        ENG_DATABASE: "io",
+        ENG_QUEUE: "io",
+        PREDEFINED_PROCESS: "subprocess",
+        DOCUMENT_SINGLE: "io",
+        HEXAGON: "process",
+        ROUNDED_RECTANGLE: "process",
+        SQUARE: "process"
+      };
+
+      const SHAPE_LABEL_MAP: Partial<Record<string, string>> = {
+        ELLIPSE: "Start / End",
+        DIAMOND: "Decision",
+        ROUNDED_RECTANGLE: "Process",
+        SQUARE: "Process Block",
+        PARALLELOGRAM_RIGHT: "Input / Output",
+        TRAPEZOID: "Manual Process",
+        MANUAL_INPUT: "Manual Input",
+        ENG_DATABASE: "Database",
+        ENG_QUEUE: "Queue",
+        PREDEFINED_PROCESS: "Sub-process",
+        DOCUMENT_SINGLE: "Document",
+        HEXAGON: "Preparation"
+      };
+
+      const suggestions: AutoDetectSuggestion[] = [];
+
+      // Shape type suggestions
+      for (const [shapeType, count] of shapeTypeCounts) {
+        if (count >= 1) {
+          // Check if already defined
+          const alreadyDefined = state.shapeEntries.some(e => e.shapeType === shapeType);
+          if (!alreadyDefined) {
+            suggestions.push({
+              kind: "shape",
+              name: SHAPE_LABEL_MAP[shapeType] ?? shapeType.toLowerCase().replace(/_/g, " "),
+              shapeType: shapeType as FigJamShapeType,
+              layoutRole: SHAPE_ROLE_MAP[shapeType] ?? "process",
+              fill: "#F0F4FA",
+              stroke: "#6B88AA",
+              count
+            });
+          }
+        }
+      }
+
+      // Color group suggestions (systems)
+      for (const [, group] of colorGroups) {
+        if (group.count >= 2) {
+          const alreadyDefined = state.systemEntries.some(e => e.fill.toUpperCase() === group.fill.toUpperCase());
+          if (!alreadyDefined) {
+            suggestions.push({
+              kind: "system",
+              name: `Color Group (${group.fill})`,
+              fill: group.fill,
+              stroke: group.stroke,
+              count: group.count
+            });
+          }
+        }
+      }
+
+      const result: AutoDetectResult = {
+        suggestions,
+        totalShapes: shapeNodes.length,
+        totalConnectors: connectors.length,
+        uniqueShapeTypes: shapeTypeCounts.size,
+        uniqueColors: colorGroups.size
+      };
+
+      postMessage({ type: "AUTO_DETECT_RESULT", result });
+      return;
+    }
+
+    // ─── Organize Preview ─────────────────────────────────────
+    case "ORGANIZE_PREVIEW": {
+      const { getNodesInScope, isShapeNode, getConnectorNodes } = await import("@core/common/selection");
+      const { computeOrganizeLayout } = await import("@core/organize/layout");
+
+      const scopedNodes = getNodesInScope(message.scope);
+      const shapes = scopedNodes.filter(isShapeNode);
+      const connectors = getConnectorNodes(scopedNodes);
+      const shapeEntryById = new Map(state.shapeEntries.map((e) => [e.id, e]));
+
+      const inputs = shapes.map((node) => {
+        const shapeEntryId = state.nodeAssignments.shape[node.id];
+        const shapeEntry = shapeEntryId ? shapeEntryById.get(shapeEntryId) : undefined;
+        return {
+          id: node.id, x: node.x, y: node.y,
+          width: node.width, height: node.height,
+          shapeType: node.shapeType,
+          layoutRole: shapeEntry?.layoutRole as LayoutRole | undefined
+        };
+      });
+
+      const connectorInputs = connectors.map((c) => ({
+        id: c.id,
+        sourceNodeId: "endpointNodeId" in c.connectorStart ? c.connectorStart.endpointNodeId ?? undefined : undefined,
+        targetNodeId: "endpointNodeId" in c.connectorEnd ? c.connectorEnd.endpointNodeId ?? undefined : undefined,
+        label: (() => { try { return c.text.characters.trim(); } catch { return ""; } })(),
+        pathType: c.connectorLineType
+      }));
+
+      const presetMap: Record<string, string> = {
+        flow_lr: "process_lr", flow_tb: "hierarchy_tb",
+        tree: "decision_tree_tb", swimlane: "swimlane_category", compact: "hierarchy_tb"
+      };
+      const connectorHandlingMap: Record<string, string> = {
+        clean: "spread", smooth: "tree", direct: "minimal"
+      };
+
+      const v1Config = {
+        preset: (presetMap[message.config.preset] ?? "process_lr") as import("@shared/types").LayoutPreset,
+        routingMode: "auto" as const,
+        spacingMode: "balanced" as const,
+        connectorHandling: (connectorHandlingMap[message.config.connectorStyle] ?? "spread") as import("@shared/types").ConnectorHandlingMode,
+        nodeGap: message.config.nodeGap,
+        laneGap: message.config.laneGap,
+        alignStrict: message.config.alignStrict
+      };
+
+      const v1State: import("@shared/types").PluginStateV1 = {
+        schemaVersion: 1, themeMode: state.themeMode,
+        shapePresets: [], connectorPresets: [], categories: [],
+        nodeCategoryAssignments: {}
+      };
+
+      const layout = computeOrganizeLayout(inputs, connectorInputs, v1Config, v1State);
+
+      let wouldMove = 0;
+      let wouldSkip = 0;
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      const shapeById = new Map(shapes.map(n => [n.id, n]));
+
+      for (const placement of layout.placements) {
+        const target = shapeById.get(placement.nodeId);
+        if (!target) { wouldSkip++; continue; }
+        if (target.x !== Math.round(placement.x) || target.y !== Math.round(placement.y)) {
+          wouldMove++;
+        }
+        minX = Math.min(minX, placement.x);
+        minY = Math.min(minY, placement.y);
+        maxX = Math.max(maxX, placement.x + target.width);
+        maxY = Math.max(maxY, placement.y + target.height);
+      }
+
+      const preview: OrganizePreviewResult = {
+        wouldMove,
+        wouldSkip,
+        estimatedCrossings: layout.diagnostics.crossingsReducedEstimate ?? 0,
+        estimatedReduction: layout.diagnostics.crossingsReducedEstimate ?? 0,
+        componentCount: layout.diagnostics.componentCount,
+        boundingBox: {
+          width: maxX > minX ? Math.round(maxX - minX) : 0,
+          height: maxY > minY ? Math.round(maxY - minY) : 0
+        }
+      };
+
+      postMessage({ type: "ORGANIZE_PREVIEW_RESULT", result: preview });
+      return;
+    }
+
+    // ─── Bulk Operations ──────────────────────────────────────
+    case "SELECT_BY_ROLE": {
+      const targetRole = message.layoutRole;
+      const matchingEntries = state.shapeEntries.filter(e => e.layoutRole === targetRole);
+      const entryIds = new Set(matchingEntries.map(e => e.id));
+      const nodeIds = Object.entries(state.nodeAssignments.shape)
+        .filter(([, entryId]) => entryIds.has(entryId))
+        .map(([nodeId]) => nodeId);
+
+      const nodes = figma.currentPage.findAll(n =>
+        n.type === "SHAPE_WITH_TEXT" && nodeIds.includes(n.id)
+      );
+      figma.currentPage.selection = nodes;
+      sendSelectionState();
+      sendActionResult({
+        action: "SELECT_BY_ROLE",
+        severity: nodes.length > 0 ? "info" : "warning",
+        message: nodes.length > 0 ? `Selected ${nodes.length} "${targetRole}" shape(s).` : `No shapes assigned to role "${targetRole}".`,
+        changed: nodes.length, skipped: 0
+      });
+      return;
+    }
+
+    case "SELECT_UNMAPPED": {
+      const assignedShapeIds = new Set(Object.keys(state.nodeAssignments.shape));
+      const assignedSystemIds = new Set(Object.keys(state.nodeAssignments.system));
+      const nodes = figma.currentPage.findAll(n =>
+        n.type === "SHAPE_WITH_TEXT" && !assignedShapeIds.has(n.id) && !assignedSystemIds.has(n.id)
+      );
+      figma.currentPage.selection = nodes;
+      sendSelectionState();
+      sendActionResult({
+        action: "SELECT_UNMAPPED",
+        severity: nodes.length > 0 ? "info" : "warning",
+        message: nodes.length > 0 ? `Selected ${nodes.length} unmapped shape(s).` : "All shapes are mapped.",
+        changed: nodes.length, skipped: 0
+      });
+      return;
+    }
+
+    case "SELECT_BY_SYSTEM": {
+      const nodeIds = Object.entries(state.nodeAssignments.system)
+        .filter(([, entryId]) => entryId === message.entryId)
+        .map(([nodeId]) => nodeId);
+      const nodes = figma.currentPage.findAll(n =>
+        n.type === "SHAPE_WITH_TEXT" && nodeIds.includes(n.id)
+      );
+      figma.currentPage.selection = nodes;
+      sendSelectionState();
+      const entryName = state.systemEntries.find(e => e.id === message.entryId)?.name ?? "unknown";
+      sendActionResult({
+        action: "SELECT_BY_SYSTEM",
+        severity: nodes.length > 0 ? "info" : "warning",
+        message: nodes.length > 0 ? `Selected ${nodes.length} "${entryName}" shape(s).` : `No shapes assigned to "${entryName}".`,
+        changed: nodes.length, skipped: 0
+      });
+      return;
+    }
+
+    case "CLEAR_ALL_ASSIGNMENTS": {
+      const totalCleared = Object.keys(state.nodeAssignments.shape).length + Object.keys(state.nodeAssignments.system).length;
+      state = { ...state, nodeAssignments: { system: {}, shape: {} } };
+      savePluginStateV2(state);
+      sendInitState();
+      sendSelectionState();
+      sendActionResult({
+        action: "CLEAR_ALL_ASSIGNMENTS",
+        severity: "info",
+        message: `Cleared ${totalCleared} assignment(s).`,
+        changed: totalCleared, skipped: 0
+      });
+      return;
+    }
+
+    // ─── Duplicate Entry ──────────────────────────────────────
+    case "DUPLICATE_SHAPE_ENTRY": {
+      const source = state.shapeEntries.find(e => e.id === message.entryId);
+      if (!source) return;
+      const dupe: ShapeLegendEntry = {
+        ...source,
+        id: `entry-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        name: `${source.name} (copy)`,
+        order: state.shapeEntries.length + 1
+      };
+      upsertShapeEntry(dupe);
+      savePluginStateV2(state);
+      sendInitState();
+      sendActionResult({
+        action: "DUPLICATE_SHAPE_ENTRY",
+        severity: "info",
+        message: `Duplicated "${source.name}".`,
+        changed: 1, skipped: 0
+      });
+      return;
+    }
+
+    case "DUPLICATE_SYSTEM_ENTRY": {
+      const source = state.systemEntries.find(e => e.id === message.entryId);
+      if (!source) return;
+      const dupe: SystemLegendEntry = {
+        ...source,
+        id: `entry-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        name: `${source.name} (copy)`,
+        order: state.systemEntries.length + 1
+      };
+      upsertSystemEntry(dupe);
+      savePluginStateV2(state);
+      sendInitState();
+      sendActionResult({
+        action: "DUPLICATE_SYSTEM_ENTRY",
+        severity: "info",
+        message: `Duplicated "${source.name}".`,
+        changed: 1, skipped: 0
       });
       return;
     }

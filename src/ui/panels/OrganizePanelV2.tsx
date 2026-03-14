@@ -2,17 +2,24 @@ import { useState } from "react";
 import type { JSX } from "react";
 import { NumericInput } from "@ui/components/FormFields";
 import type {
+  ApplyScope,
   ConnectorStyleOption,
   LayoutPresetV2,
   OrganizeConfigV2,
-  OrganizeDiagnosticsV2
+  OrganizeDiagnosticsV2,
+  OrganizePreviewResult
 } from "@shared/types";
 
 interface OrganizePanelV2Props {
   config: OrganizeConfigV2;
   diagnostics: OrganizeDiagnosticsV2 | null;
+  preview: OrganizePreviewResult | null;
+  scope: ApplyScope;
   onConfigChange: (config: OrganizeConfigV2) => void;
+  onScopeChange: (scope: ApplyScope) => void;
   onRun: () => void;
+  onPreview: () => void;
+  onDismissPreview: () => void;
 }
 
 const PRESET_OPTIONS: {
@@ -100,10 +107,42 @@ const CONNECTOR_STYLE_OPTIONS: {
   value: ConnectorStyleOption;
   title: string;
   description: string;
+  icon: JSX.Element;
 }[] = [
-  { value: "clean", title: "Clean", description: "Elbowed paths with spread ports — best for most flowcharts." },
-  { value: "smooth", title: "Smooth", description: "Curved paths for organic-looking diagrams." },
-  { value: "direct", title: "Direct", description: "Straight point-to-point lines for simple graphs." }
+  {
+    value: "clean", title: "Clean",
+    description: "Elbowed paths with spread ports.",
+    icon: (
+      <svg viewBox="0 0 32 16" width="32" height="16">
+        <circle cx="2" cy="8" r="2" fill="var(--teal)" />
+        <path d="M4,8 H12 V2 H20 V8" stroke="var(--t2)" strokeWidth="1.2" fill="none" />
+        <circle cx="30" cy="8" r="2" fill="var(--teal)" />
+        <path d="M22,8 H30" stroke="var(--t2)" strokeWidth="1.2" fill="none" />
+      </svg>
+    )
+  },
+  {
+    value: "smooth", title: "Smooth",
+    description: "Curved paths for organic look.",
+    icon: (
+      <svg viewBox="0 0 32 16" width="32" height="16">
+        <circle cx="2" cy="12" r="2" fill="var(--teal)" />
+        <path d="M4,12 C14,12 18,4 30,4" stroke="var(--t2)" strokeWidth="1.2" fill="none" />
+        <circle cx="30" cy="4" r="2" fill="var(--teal)" />
+      </svg>
+    )
+  },
+  {
+    value: "direct", title: "Direct",
+    description: "Straight point-to-point lines.",
+    icon: (
+      <svg viewBox="0 0 32 16" width="32" height="16">
+        <circle cx="2" cy="12" r="2" fill="var(--teal)" />
+        <line x1="4" y1="12" x2="28" y2="4" stroke="var(--t2)" strokeWidth="1.2" />
+        <circle cx="30" cy="4" r="2" fill="var(--teal)" />
+      </svg>
+    )
+  }
 ];
 
 const SPACING_LABELS = ["Compact", "Balanced", "Spacious"];
@@ -116,13 +155,36 @@ const spacingLabelIndex = (value: number): number => {
 export const OrganizePanelV2 = ({
   config,
   diagnostics,
+  preview,
+  scope,
   onConfigChange,
-  onRun
+  onScopeChange,
+  onRun,
+  onPreview,
+  onDismissPreview
 }: OrganizePanelV2Props): JSX.Element => {
   const [showAdvanced, setShowAdvanced] = useState(false);
 
   return (
     <div className="panel organize-panel-v2">
+      {/* Scope Toggle */}
+      <div className="scope-toggle">
+        <button
+          className={`scope-btn ${scope === "selection" ? "active" : ""}`}
+          onClick={() => onScopeChange("selection")}
+          title="Only organize currently selected shapes"
+        >
+          Selection Only
+        </button>
+        <button
+          className={`scope-btn ${scope === "board" ? "active" : ""}`}
+          onClick={() => onScopeChange("board")}
+          title="Organize all shapes on the entire board"
+        >
+          Entire Board
+        </button>
+      </div>
+
       {/* Layout Preset */}
       <div className="section-hd">
         <div>
@@ -181,20 +243,46 @@ export const OrganizePanelV2 = ({
             className={`connector-style-btn ${config.connectorStyle === option.value ? "selected" : ""}`}
             onClick={() => onConfigChange({ ...config, connectorStyle: option.value })}
           >
+            <div className="connector-icon">{option.icon}</div>
             <strong>{option.title}</strong>
             <small>{option.description}</small>
           </button>
         ))}
       </div>
 
-      {/* Run Button */}
-      <button className="organize-run-btn primary" onClick={onRun}>
-        Organize Now
-      </button>
+      {/* Preview / Run Buttons */}
+      <div className="organize-actions">
+        <button className="organize-preview-btn" onClick={onPreview} title="Dry-run the layout to see statistics before committing changes">
+          Preview
+        </button>
+        <button className="organize-run-btn primary" onClick={onRun}>
+          Organize Now
+        </button>
+      </div>
+
+      {/* Preview Results */}
+      {preview && (
+        <div className="preview-results">
+          <div className="preview-header">
+            <strong>Preview Results</strong>
+            <button className="toast-x" onClick={onDismissPreview}>&times;</button>
+          </div>
+          <div className="diagnostics-grid">
+            <div><strong>{preview.wouldMove}</strong><span>would move</span></div>
+            <div><strong>{preview.wouldSkip}</strong><span>unchanged</span></div>
+            <div><strong>{preview.componentCount}</strong><span>components</span></div>
+            <div>
+              <strong>{preview.boundingBox.width} &times; {preview.boundingBox.height}</strong>
+              <span>bounding box (px)</span>
+            </div>
+          </div>
+          <p className="preview-hint">Click "Organize Now" to apply these changes.</p>
+        </div>
+      )}
 
       {/* Advanced */}
       <button className="ghost sm" onClick={() => setShowAdvanced((c) => !c)}>
-        {showAdvanced ? "\u25B4 Hide advanced" : "\u25BE Advanced"}
+        {showAdvanced ? "\u25B4 Hide advanced" : "\u25BE Advanced settings"}
       </button>
       {showAdvanced && (
         <div className="grid-2">

@@ -6,8 +6,10 @@ import { OrganizePanelV2 } from "@ui/panels/OrganizePanelV2";
 import type {
   ActionResult,
   ApplyScope,
+  AutoDetectResult,
   OrganizeConfigV2,
   OrganizeDiagnosticsV2,
+  OrganizePreviewResult,
   PluginStateV2,
   PresetBundleV2,
   SelectionSummaryV2,
@@ -89,6 +91,9 @@ export const App = (): JSX.Element => {
   const [organizeConfig, setOrganizeConfig] = useState<OrganizeConfigV2>(defaultOrganizeConfigV2);
   const [organizeDiagnostics, setOrganizeDiagnostics] = useState<OrganizeDiagnosticsV2 | null>(null);
   const [windowSize, setWindowSize] = useState(loadStoredWindowSize);
+  const [autoDetectResult, setAutoDetectResult] = useState<AutoDetectResult | null>(null);
+  const [organizePreview, setOrganizePreview] = useState<OrganizePreviewResult | null>(null);
+  const [organizeScope, setOrganizeScope] = useState<ApplyScope>("selection");
 
   useEffect(() => {
     window.onmessage = (event: MessageEvent<{ pluginMessage: MainToUIV2 }>) => {
@@ -108,6 +113,12 @@ export const App = (): JSX.Element => {
       }
       if (msg.type === "VALIDATION_ERROR") {
         setValidationError(msg.error.message);
+      }
+      if (msg.type === "AUTO_DETECT_RESULT") {
+        setAutoDetectResult(msg.result);
+      }
+      if (msg.type === "ORGANIZE_PREVIEW_RESULT") {
+        setOrganizePreview(msg.result);
       }
     };
     post({ type: "INIT_REQUEST" });
@@ -220,6 +231,7 @@ export const App = (): JSX.Element => {
             systemEntries={state.systemEntries}
             shapeEntries={state.shapeEntries}
             selection={selection}
+            autoDetectResult={autoDetectResult}
             onSystemUpsert={(entry) => post({ type: "SYSTEM_ENTRY_UPSERT", entry })}
             onSystemDelete={(id) => post({ type: "SYSTEM_ENTRY_DELETE", entryId: id })}
             onShapeUpsert={(entry) => post({ type: "SHAPE_ENTRY_UPSERT", entry })}
@@ -229,6 +241,14 @@ export const App = (): JSX.Element => {
             onUnassignSystem={(nodeIds) => post({ type: "UNASSIGN_SYSTEM", nodeIds })}
             onUnassignShape={(nodeIds) => post({ type: "UNASSIGN_SHAPE", nodeIds })}
             onApplyLegend={(scope: ApplyScope) => post({ type: "APPLY_LEGEND", scope })}
+            onAutoDetect={() => post({ type: "AUTO_DETECT_SCAN", scope: "board" })}
+            onDismissAutoDetect={() => setAutoDetectResult(null)}
+            onSelectByRole={(role) => post({ type: "SELECT_BY_ROLE", layoutRole: role })}
+            onSelectUnmapped={() => post({ type: "SELECT_UNMAPPED" })}
+            onSelectBySystem={(entryId) => post({ type: "SELECT_BY_SYSTEM", entryId })}
+            onClearAllAssignments={() => post({ type: "CLEAR_ALL_ASSIGNMENTS" })}
+            onDuplicateShape={(id) => post({ type: "DUPLICATE_SHAPE_ENTRY", entryId: id })}
+            onDuplicateSystem={(id) => post({ type: "DUPLICATE_SYSTEM_ENTRY", entryId: id })}
           />
         )}
 
@@ -236,8 +256,13 @@ export const App = (): JSX.Element => {
           <OrganizePanelV2
             config={organizeConfig}
             diagnostics={organizeDiagnostics}
+            preview={organizePreview}
+            scope={organizeScope}
             onConfigChange={setOrganizeConfig}
-            onRun={() => post({ type: "RUN_ORGANIZE_V2", config: organizeConfig, scope: "selection" })}
+            onScopeChange={setOrganizeScope}
+            onRun={() => post({ type: "RUN_ORGANIZE_V2", config: organizeConfig, scope: organizeScope })}
+            onPreview={() => post({ type: "ORGANIZE_PREVIEW", config: organizeConfig, scope: organizeScope })}
+            onDismissPreview={() => setOrganizePreview(null)}
           />
         )}
       </section>
