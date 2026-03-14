@@ -3,6 +3,15 @@ import type { ChangeEvent } from "react";
 import type { MainToUIV2, UIToMainV2 } from "@shared/contracts";
 import { LegendPanelV2 } from "@ui/panels/LegendPanelV2";
 import { OrganizePanelV2 } from "@ui/panels/OrganizePanelV2";
+import {
+  FlowForgeMark,
+  IconExport,
+  IconImport,
+  IconLegend,
+  IconMoon,
+  IconOrganize,
+  IconSun
+} from "@ui/components/Icons";
 import type {
   ActionResult,
   ApplyScope,
@@ -18,6 +27,11 @@ import type {
 
 const tabs = ["legend", "organize"] as const;
 type TabKey = (typeof tabs)[number];
+
+const TAB_META: Record<TabKey, { label: string; icon: typeof IconLegend }> = {
+  legend: { label: "Legend", icon: IconLegend },
+  organize: { label: "Organize", icon: IconOrganize }
+};
 
 const defaultSelectionV2: SelectionSummaryV2 = {
   total: 0,
@@ -174,7 +188,14 @@ export const App = (): JSX.Element => {
   };
 
   if (!state) {
-    return <main className="app loading">FlowForge loading&hellip;</main>;
+    return (
+      <main className="app loading">
+        <div className="loading-content">
+          <FlowForgeMark size={32} />
+          <span>Loading&hellip;</span>
+        </div>
+      </main>
+    );
   }
 
   return (
@@ -182,46 +203,48 @@ export const App = (): JSX.Element => {
       {/* ── Header ── */}
       <header className="topbar">
         <div className="brand">
-          <svg className="brand-mark" viewBox="0 0 20 20" width="20" height="20" fill="none">
-            <rect x="1" y="1" width="7" height="7" rx="2" fill="var(--acc)" opacity=".85" />
-            <rect x="12" y="1" width="7" height="7" rx="2" fill="var(--acc)" opacity=".5" />
-            <rect x="1" y="12" width="7" height="7" rx="2" fill="var(--acc)" opacity=".5" />
-            <rect x="12" y="12" width="7" height="7" rx="2" fill="var(--acc)" opacity=".3" />
-            <path d="M8 4.5h4M4.5 8v4M15.5 8v4M8 15.5h4" stroke="var(--acc)" strokeWidth="1.2" strokeLinecap="round" opacity=".7" />
-          </svg>
+          <FlowForgeMark size={22} />
           <div className="brand-text">
             <h1>FlowForge</h1>
             <span className="brand-tagline">Diagram organizer</span>
           </div>
         </div>
         <div className="topbar-actions">
-          <button className="sm" onClick={() => post({ type: "EXPORT_PRESETS_V2" })} title="Export legend presets as JSON">
-            Export
+          <button className="icon-btn" onClick={() => post({ type: "EXPORT_PRESETS_V2" })} title="Export legend presets">
+            <IconExport size={14} />
           </button>
           <label className="file-input">
-            <button className="sm">Import</button>
+            <button className="icon-btn" title="Import legend presets">
+              <IconImport size={14} />
+            </button>
             <input type="file" accept="application/json" onChange={onImportBundle} />
           </label>
+          <div className="topbar-divider" />
           <button className="icon-btn" onClick={themeToggle} title={state.themeMode === "light" ? "Switch to dark mode" : "Switch to light mode"}>
-            {state.themeMode === "light" ? "\u263E" : "\u2600"}
+            {state.themeMode === "light" ? <IconMoon size={14} /> : <IconSun size={14} />}
           </button>
         </div>
       </header>
 
       {/* ── Tabs ── */}
-      <nav className="tabs tabs-2" role="tablist">
-        {tabs.map((tab) => (
-          <button
-            key={tab}
-            role="tab"
-            aria-selected={activeTab === tab}
-            tabIndex={activeTab === tab ? 0 : -1}
-            className={activeTab === tab ? "on" : ""}
-            onClick={() => setActiveTab(tab)}
-          >
-            {tab === "legend" ? "Legend" : "Organize"}
-          </button>
-        ))}
+      <nav className="tabs" role="tablist">
+        {tabs.map((tab) => {
+          const meta = TAB_META[tab];
+          const TabIcon = meta.icon;
+          return (
+            <button
+              key={tab}
+              role="tab"
+              aria-selected={activeTab === tab}
+              tabIndex={activeTab === tab ? 0 : -1}
+              className={activeTab === tab ? "on" : ""}
+              onClick={() => setActiveTab(tab)}
+            >
+              <TabIcon size={13} />
+              {meta.label}
+            </button>
+          );
+        })}
       </nav>
 
       {/* ── Panel ── */}
@@ -270,8 +293,13 @@ export const App = (): JSX.Element => {
       {/* ── Toast ── */}
       {(lastResult || validationError) && (
         <div className={`toast toast--${footerSeverity}`} role="alert">
-          <span>{footerMessage}</span>
-          <button className="toast-x" onClick={dismissResult}>
+          <span className="toast-icon">
+            {footerSeverity === "info" && "\u2713"}
+            {footerSeverity === "warning" && "\u26A0"}
+            {footerSeverity === "error" && "\u2717"}
+          </span>
+          <span className="toast-msg">{footerMessage}</span>
+          <button className="toast-x" onClick={dismissResult} aria-label="Dismiss">
             &times;
           </button>
         </div>
@@ -285,6 +313,9 @@ export const App = (): JSX.Element => {
             ? `${selection.total} selected \u2014 ${selection.shapes} shapes, ${selection.connectors} connectors`
             : "Select shapes or connectors to begin"}
         </p>
+        {selection.total > 0 && selection.unmappedCount > 0 && (
+          <span className="status-unmapped">{selection.unmappedCount} unmapped</span>
+        )}
       </footer>
     </main>
   );

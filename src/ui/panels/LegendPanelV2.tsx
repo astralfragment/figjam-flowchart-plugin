@@ -3,6 +3,22 @@ import type { JSX } from "react";
 import { ColorField, NumericInput } from "@ui/components/FormFields";
 import { ShapePreview } from "@ui/components/ShapePreview";
 import { LAYOUT_ROLE_DESCRIPTIONS } from "@shared/defaults";
+import {
+  IconCheck,
+  IconChevronDown,
+  IconChevronUp,
+  IconClearAll,
+  IconClose,
+  IconCopy,
+  IconPalette,
+  IconPlus,
+  IconScan,
+  IconSearch,
+  IconSelectAll,
+  IconTag,
+  IconTrash,
+  IconWand
+} from "@ui/components/Icons";
 import type {
   ApplyScope,
   AutoDetectResult,
@@ -41,6 +57,22 @@ const PATH_TYPES: { value: ConnectorPathType; label: string }[] = [
   { value: "CURVED", label: "Curved" },
   { value: "STRAIGHT", label: "Straight" }
 ];
+
+const ROLE_ICONS: Partial<Record<LayoutRole, string>> = {
+  entry: "\u25B6",
+  exit: "\u25A0",
+  process: "\u2699",
+  decision: "\u25C7",
+  merge: "\u22C8",
+  fork: "\u2442",
+  loop: "\u21BB",
+  io: "\u21C6",
+  manual: "\u270B",
+  subprocess: "\u2610",
+  annotation: "\u270E",
+  delay: "\u23F1",
+  default: "\u2022"
+};
 
 interface LegendPanelV2Props {
   systemEntries: SystemLegendEntry[];
@@ -105,6 +137,7 @@ export const LegendPanelV2 = ({
   const [editingSystemId, setEditingSystemId] = useState<string | null>(null);
   const [editingShapeId, setEditingShapeId] = useState<string | null>(null);
   const [showBulkOps, setShowBulkOps] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const editingSystem = editingSystemId
     ? systemEntries.find((e) => e.id === editingSystemId) ?? null
@@ -113,6 +146,20 @@ export const LegendPanelV2 = ({
   const editingShape = editingShapeId
     ? shapeEntries.find((e) => e.id === editingShapeId) ?? null
     : null;
+
+  const filteredShapes = searchQuery
+    ? shapeEntries.filter(e =>
+        e.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        e.layoutRole.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        e.shapeType.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : shapeEntries;
+
+  const filteredSystems = searchQuery
+    ? systemEntries.filter(e =>
+        e.name.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : systemEntries;
 
   const newSystemEntry = (): SystemLegendEntry => ({
     id: uid(),
@@ -180,38 +227,68 @@ export const LegendPanelV2 = ({
     }
   };
 
+  const activeEntries = subTab === "shapes" ? filteredShapes : filteredSystems;
+
   return (
     <div className="panel legend-panel-v2">
+      {/* Sub-tabs */}
       <div className="sub-tabs">
         <button className={subTab === "shapes" ? "active" : ""} onClick={() => setSubTab("shapes")}>
-          Shapes by Role
+          <IconPalette size={12} />
+          Shapes
+          <span className="tab-count">{shapeEntries.length}</span>
         </button>
         <button className={subTab === "systems" ? "active" : ""} onClick={() => setSubTab("systems")}>
-          Systems by Color
+          <IconTag size={12} />
+          Systems
+          <span className="tab-count">{systemEntries.length}</span>
         </button>
       </div>
 
       {/* Selection Summary */}
       {selection.total > 0 && (
         <div className="selection-bar">
-          <span>{selection.shapes} shapes, {selection.connectors} connectors selected</span>
+          <span className="sel-count">{selection.shapes}</span>
+          <span>shapes</span>
+          <span className="sel-sep">&bull;</span>
+          <span className="sel-count">{selection.connectors}</span>
+          <span>connectors</span>
           {selection.unmappedCount > 0 && (
-            <span className="unmapped">{selection.unmappedCount} unmapped</span>
+            <span className="unmapped">
+              <span className="unmapped-dot" />
+              {selection.unmappedCount} unmapped
+            </span>
           )}
         </div>
       )}
 
-      {/* Quick Actions Bar */}
-      <div className="quick-actions-bar">
-        <button className="xs" onClick={onAutoDetect} title="Scan your board and suggest legend entries based on shapes and colors found">
-          Auto-Detect
-        </button>
-        <button className="xs" onClick={() => setShowBulkOps(!showBulkOps)} title="Bulk selection and assignment operations">
-          Bulk Ops {showBulkOps ? "\u25B4" : "\u25BE"}
-        </button>
-        <button className="xs" onClick={onSelectUnmapped} title="Select all shapes on the board that have no legend assignment">
-          Select Unmapped
-        </button>
+      {/* Toolbar */}
+      <div className="legend-toolbar">
+        <div className="search-field">
+          <IconSearch size={12} className="search-icon" />
+          <input
+            type="text"
+            placeholder={`Filter ${subTab}...`}
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+          {searchQuery && (
+            <button className="search-clear" onClick={() => setSearchQuery("")} aria-label="Clear search">
+              <IconClose size={10} />
+            </button>
+          )}
+        </div>
+        <div className="toolbar-actions">
+          <button className="tool-btn" onClick={onAutoDetect} title="Scan board for shapes &amp; colors">
+            <IconWand size={13} />
+          </button>
+          <button className="tool-btn" onClick={() => setShowBulkOps(!showBulkOps)} title="Bulk operations" aria-pressed={showBulkOps}>
+            <IconScan size={13} />
+          </button>
+          <button className="tool-btn" onClick={onSelectUnmapped} title="Select unmapped shapes">
+            <IconSelectAll size={13} />
+          </button>
+        </div>
       </div>
 
       {/* Bulk Operations Panel */}
@@ -222,6 +299,7 @@ export const LegendPanelV2 = ({
             <div className="bulk-chips">
               {LAYOUT_ROLES.filter(r => r !== "default").map(role => (
                 <button key={role} className="chip" onClick={() => onSelectByRole(role)}>
+                  <span className="chip-icon">{ROLE_ICONS[role]}</span>
                   {role}
                 </button>
               ))}
@@ -240,7 +318,8 @@ export const LegendPanelV2 = ({
               </div>
             </div>
           )}
-          <button className="xs danger" onClick={onClearAllAssignments} title="Remove all shape and system assignments">
+          <button className="bulk-clear-btn" onClick={onClearAllAssignments} title="Remove all shape and system assignments">
+            <IconClearAll size={12} />
             Clear All Assignments
           </button>
         </div>
@@ -250,17 +329,34 @@ export const LegendPanelV2 = ({
       {autoDetectResult && (
         <div className="auto-detect-results">
           <div className="auto-detect-header">
-            <strong>Board Scan Results</strong>
-            <button className="toast-x" onClick={onDismissAutoDetect}>&times;</button>
+            <div className="auto-detect-title">
+              <IconWand size={13} />
+              <strong>Board Scan</strong>
+            </div>
+            <button className="close-btn" onClick={onDismissAutoDetect} aria-label="Dismiss">
+              <IconClose size={12} />
+            </button>
           </div>
           <div className="auto-detect-stats">
-            <span>{autoDetectResult.totalShapes} shapes</span>
-            <span>{autoDetectResult.totalConnectors} connectors</span>
-            <span>{autoDetectResult.uniqueShapeTypes} types</span>
-            <span>{autoDetectResult.uniqueColors} colors</span>
+            <div className="stat-pill">
+              <span className="stat-value">{autoDetectResult.totalShapes}</span>
+              <span className="stat-label">shapes</span>
+            </div>
+            <div className="stat-pill">
+              <span className="stat-value">{autoDetectResult.totalConnectors}</span>
+              <span className="stat-label">connectors</span>
+            </div>
+            <div className="stat-pill">
+              <span className="stat-value">{autoDetectResult.uniqueShapeTypes}</span>
+              <span className="stat-label">types</span>
+            </div>
+            <div className="stat-pill">
+              <span className="stat-value">{autoDetectResult.uniqueColors}</span>
+              <span className="stat-label">colors</span>
+            </div>
           </div>
           {autoDetectResult.suggestions.length === 0 && (
-            <p className="muted center">All detected shapes and colors are already in your legend.</p>
+            <p className="muted center">All shapes and colors are already in your legend.</p>
           )}
           {autoDetectResult.suggestions.map((s, i) => (
             <div key={i} className="suggestion-card">
@@ -278,32 +374,73 @@ export const LegendPanelV2 = ({
                   </span>
                 </div>
               </div>
-              <button className="xs" onClick={() => acceptSuggestion(s)}>Add</button>
+              <button className="accept-btn" onClick={() => acceptSuggestion(s)} title="Add to legend">
+                <IconPlus size={12} />
+                Add
+              </button>
             </div>
           ))}
         </div>
       )}
 
+      {/* Entries */}
       {subTab === "shapes" && (
         <div className="entry-list">
-          {shapeEntries.map((entry) => (
-            <div
-              key={entry.id}
-              className={`entry-card ${editingShapeId === entry.id ? "editing" : ""}`}
-              onClick={() => setEditingShapeId(editingShapeId === entry.id ? null : entry.id)}
-            >
-              <div className="entry-header">
-                <ShapePreview shapeType={entry.shapeType} fill={entry.fill} stroke={entry.stroke} size={28} />
-                <span className="entry-name">{entry.name}</span>
-                <span className="role-badge">{entry.layoutRole}</span>
-              </div>
-              <div className="role-hint">{LAYOUT_ROLE_DESCRIPTIONS[entry.layoutRole]}</div>
+          {filteredShapes.length === 0 && shapeEntries.length > 0 && (
+            <div className="empty-state">
+              <p>No shapes match &ldquo;{searchQuery}&rdquo;</p>
             </div>
-          ))}
+          )}
+          {filteredShapes.length === 0 && shapeEntries.length === 0 && (
+            <div className="empty-state">
+              <IconPalette size={20} />
+              <p>No shapes defined yet.</p>
+              <p>Add shape entries to define visual roles for your flowchart nodes.</p>
+            </div>
+          )}
+
+          {filteredShapes.map((entry) => {
+            const breakdownItem = selection.shapeBreakdown.find(b => b.entryId === entry.id);
+            return (
+              <div
+                key={entry.id}
+                className={`entry-card ${editingShapeId === entry.id ? "editing" : ""}`}
+                onClick={() => setEditingShapeId(editingShapeId === entry.id ? null : entry.id)}
+              >
+                <div className="entry-header">
+                  <ShapePreview shapeType={entry.shapeType} fill={entry.fill} stroke={entry.stroke} size={28} />
+                  <div className="entry-meta">
+                    <span className="entry-name">{entry.name}</span>
+                    <span className="entry-sub">{SHAPE_TYPE_OPTIONS.find(o => o.value === entry.shapeType)?.label}</span>
+                  </div>
+                  <span className="role-badge">
+                    <span className="role-icon">{ROLE_ICONS[entry.layoutRole]}</span>
+                    {entry.layoutRole}
+                  </span>
+                  {breakdownItem && (
+                    <span className="count-badge">{breakdownItem.count}</span>
+                  )}
+                  <span className="entry-chevron">
+                    {editingShapeId === entry.id ? <IconChevronUp size={12} /> : <IconChevronDown size={12} />}
+                  </span>
+                </div>
+              </div>
+            );
+          })}
 
           {editingShape && (
-            <div className="edit-form">
-              <h4>Edit Shape Entry</h4>
+            <div className="edit-form" onClick={(e) => e.stopPropagation()}>
+              <div className="edit-form-header">
+                <h4>Edit Shape</h4>
+                <button className="close-btn" onClick={() => setEditingShapeId(null)} aria-label="Close">
+                  <IconClose size={12} />
+                </button>
+              </div>
+
+              <div className="shape-preview-large">
+                <ShapePreview shapeType={editingShape.shapeType} fill={editingShape.fill} stroke={editingShape.stroke} size={52} />
+              </div>
+
               <label className="field">
                 <span>Name</span>
                 <input
@@ -311,138 +448,191 @@ export const LegendPanelV2 = ({
                   onChange={(e) => onShapeUpsert({ ...editingShape, name: e.target.value })}
                 />
               </label>
-              <label className="field">
-                <span>Shape Type</span>
-                <select
-                  value={editingShape.shapeType}
-                  onChange={(e) => onShapeUpsert({ ...editingShape, shapeType: e.target.value as FigJamShapeType })}
-                >
-                  {SHAPE_TYPE_OPTIONS.map((opt) => (
-                    <option key={opt.value} value={opt.value}>{opt.label}</option>
-                  ))}
-                </select>
-              </label>
-              <label className="field">
-                <span>Layout Role</span>
-                <select
-                  value={editingShape.layoutRole}
-                  onChange={(e) => onShapeUpsert({ ...editingShape, layoutRole: e.target.value as LayoutRole })}
-                >
-                  {LAYOUT_ROLES.map((role) => (
-                    <option key={role} value={role}>{role} &mdash; {LAYOUT_ROLE_DESCRIPTIONS[role]}</option>
-                  ))}
-                </select>
-              </label>
-              <div className="shape-preview-large">
-                <ShapePreview shapeType={editingShape.shapeType} fill={editingShape.fill} stroke={editingShape.stroke} size={48} />
+
+              <div className="grid-2">
+                <label className="field">
+                  <span>Shape Type</span>
+                  <select
+                    value={editingShape.shapeType}
+                    onChange={(e) => onShapeUpsert({ ...editingShape, shapeType: e.target.value as FigJamShapeType })}
+                  >
+                    {SHAPE_TYPE_OPTIONS.map((opt) => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </select>
+                </label>
+                <label className="field">
+                  <span>Layout Role</span>
+                  <select
+                    value={editingShape.layoutRole}
+                    onChange={(e) => onShapeUpsert({ ...editingShape, layoutRole: e.target.value as LayoutRole })}
+                  >
+                    {LAYOUT_ROLES.map((role) => (
+                      <option key={role} value={role}>{role}</option>
+                    ))}
+                  </select>
+                </label>
               </div>
-              <ColorField label="Fill" value={editingShape.fill} fallback="#F0F4FA" onChange={(v) => onShapeUpsert({ ...editingShape, fill: v })} />
-              <ColorField label="Stroke" value={editingShape.stroke} fallback="#6B88AA" onChange={(v) => onShapeUpsert({ ...editingShape, stroke: v })} />
-              <NumericInput label="Stroke Width" value={editingShape.strokeWidth} min={0} max={10} onChange={(v) => onShapeUpsert({ ...editingShape, strokeWidth: v })} />
-              <ColorField label="Text Color" value={editingShape.textColor} fallback="#10223A" onChange={(v) => onShapeUpsert({ ...editingShape, textColor: v })} />
 
-              <h5>Connector Style</h5>
-              <ColorField label="Connector Color" value={editingShape.connectorStroke} fallback="#5C6B8A" onChange={(v) => onShapeUpsert({ ...editingShape, connectorStroke: v })} />
-              <label className="field">
-                <span>Path Type</span>
-                <select value={editingShape.connectorPathType} onChange={(e) => onShapeUpsert({ ...editingShape, connectorPathType: e.target.value as ConnectorPathType })}>
-                  {PATH_TYPES.map((pt) => <option key={pt.value} value={pt.value}>{pt.label}</option>)}
-                </select>
-              </label>
+              <p className="role-description">{LAYOUT_ROLE_DESCRIPTIONS[editingShape.layoutRole]}</p>
 
-              <div className="btn-row">
-                <button onClick={() => onAssignShape(editingShape.id, [])} title="Assign this shape role to all currently selected shapes on the canvas">
+              <div className="grid-2">
+                <ColorField label="Fill" value={editingShape.fill} fallback="#F0F4FA" onChange={(v) => onShapeUpsert({ ...editingShape, fill: v })} />
+                <ColorField label="Stroke" value={editingShape.stroke} fallback="#6B88AA" onChange={(v) => onShapeUpsert({ ...editingShape, stroke: v })} />
+              </div>
+
+              <div className="grid-2">
+                <NumericInput label="Stroke Width" value={editingShape.strokeWidth} min={0} max={10} onChange={(v) => onShapeUpsert({ ...editingShape, strokeWidth: v })} />
+                <ColorField label="Text Color" value={editingShape.textColor} fallback="#10223A" onChange={(v) => onShapeUpsert({ ...editingShape, textColor: v })} />
+              </div>
+
+              <div className="edit-section-label">Connector</div>
+              <div className="grid-2">
+                <ColorField label="Connector Color" value={editingShape.connectorStroke} fallback="#5C6B8A" onChange={(v) => onShapeUpsert({ ...editingShape, connectorStroke: v })} />
+                <label className="field">
+                  <span>Path Type</span>
+                  <select value={editingShape.connectorPathType} onChange={(e) => onShapeUpsert({ ...editingShape, connectorPathType: e.target.value as ConnectorPathType })}>
+                    {PATH_TYPES.map((pt) => <option key={pt.value} value={pt.value}>{pt.label}</option>)}
+                  </select>
+                </label>
+              </div>
+
+              <div className="edit-actions">
+                <button className="edit-action-btn primary-action" onClick={() => onAssignShape(editingShape.id, [])} title="Tag selected shapes on canvas">
+                  <IconTag size={12} />
                   Tag Selected
                 </button>
-                <button className="xs" onClick={() => onDuplicateShape(editingShape.id)} title="Create a copy of this entry">
-                  Duplicate
+                <button className="edit-action-btn" onClick={() => onDuplicateShape(editingShape.id)} title="Duplicate entry">
+                  <IconCopy size={12} />
                 </button>
-                <button className="danger xs" onClick={() => { onShapeDelete(editingShape.id); setEditingShapeId(null); }}>Delete</button>
+                <button className="edit-action-btn danger-action" onClick={() => { onShapeDelete(editingShape.id); setEditingShapeId(null); }} title="Delete entry">
+                  <IconTrash size={12} />
+                </button>
               </div>
             </div>
           )}
 
-          <button className="add-btn" onClick={() => {
+          <button className="add-entry-btn" onClick={() => {
             const entry = newShapeEntry();
             onShapeUpsert(entry);
             setEditingShapeId(entry.id);
           }}>
-            + Add Shape Entry
+            <IconPlus size={13} />
+            Add Shape Entry
           </button>
         </div>
       )}
 
       {subTab === "systems" && (
         <div className="entry-list">
-          {systemEntries.length === 0 && (
+          {filteredSystems.length === 0 && systemEntries.length === 0 && (
             <div className="empty-state">
-              <p>No systems defined yet. Systems let you color-code shapes by department or subsystem.</p>
+              <IconTag size={20} />
+              <p>No systems defined yet.</p>
+              <p>Systems let you color-code shapes by department, team, or subsystem.</p>
+            </div>
+          )}
+          {filteredSystems.length === 0 && systemEntries.length > 0 && (
+            <div className="empty-state">
+              <p>No systems match &ldquo;{searchQuery}&rdquo;</p>
             </div>
           )}
 
-          {systemEntries.map((entry) => (
-            <div
-              key={entry.id}
-              className={`entry-card ${editingSystemId === entry.id ? "editing" : ""}`}
-              onClick={() => setEditingSystemId(editingSystemId === entry.id ? null : entry.id)}
-            >
-              <div className="entry-header">
-                <div className="swatch" style={{ backgroundColor: entry.fill, border: `2px solid ${entry.stroke}` }} />
-                <span className="entry-name">{entry.name}</span>
-                {selection.systemBreakdown.find(b => b.entryId === entry.id) && (
-                  <span className="count-badge">
-                    {selection.systemBreakdown.find(b => b.entryId === entry.id)?.count}
+          {filteredSystems.map((entry) => {
+            const breakdownItem = selection.systemBreakdown.find(b => b.entryId === entry.id);
+            return (
+              <div
+                key={entry.id}
+                className={`entry-card ${editingSystemId === entry.id ? "editing" : ""}`}
+                onClick={() => setEditingSystemId(editingSystemId === entry.id ? null : entry.id)}
+              >
+                <div className="entry-header">
+                  <div className="swatch" style={{ backgroundColor: entry.fill, borderColor: entry.stroke }} />
+                  <div className="entry-meta">
+                    <span className="entry-name">{entry.name}</span>
+                  </div>
+                  {breakdownItem && (
+                    <span className="count-badge">{breakdownItem.count}</span>
+                  )}
+                  <span className="entry-chevron">
+                    {editingSystemId === entry.id ? <IconChevronUp size={12} /> : <IconChevronDown size={12} />}
                   </span>
-                )}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
 
           {editingSystem && (
-            <div className="edit-form">
-              <h4>Edit System Entry</h4>
+            <div className="edit-form" onClick={(e) => e.stopPropagation()}>
+              <div className="edit-form-header">
+                <h4>Edit System</h4>
+                <button className="close-btn" onClick={() => setEditingSystemId(null)} aria-label="Close">
+                  <IconClose size={12} />
+                </button>
+              </div>
+
+              <div className="system-preview-bar" style={{ background: editingSystem.fill, borderColor: editingSystem.stroke }}>
+                <span style={{ color: editingSystem.textColor, fontWeight: editingSystem.textWeight }}>{editingSystem.name}</span>
+              </div>
+
               <label className="field">
                 <span>Name</span>
                 <input value={editingSystem.name} onChange={(e) => onSystemUpsert({ ...editingSystem, name: e.target.value })} />
               </label>
-              <ColorField label="Fill" value={editingSystem.fill} fallback="#6BA4D9" onChange={(v) => onSystemUpsert({ ...editingSystem, fill: v })} />
-              <ColorField label="Stroke" value={editingSystem.stroke} fallback="#4A8BC2" onChange={(v) => onSystemUpsert({ ...editingSystem, stroke: v })} />
+
+              <div className="grid-2">
+                <ColorField label="Fill" value={editingSystem.fill} fallback="#6BA4D9" onChange={(v) => onSystemUpsert({ ...editingSystem, fill: v })} />
+                <ColorField label="Stroke" value={editingSystem.stroke} fallback="#4A8BC2" onChange={(v) => onSystemUpsert({ ...editingSystem, stroke: v })} />
+              </div>
+
               <ColorField label="Text Color" value={editingSystem.textColor} fallback="#FFFFFF" onChange={(v) => onSystemUpsert({ ...editingSystem, textColor: v })} />
 
-              <div className="btn-row">
-                <button onClick={() => onAssignSystem(editingSystem.id, [])} title="Assign this system to all currently selected shapes on the canvas">
+              <div className="edit-actions">
+                <button className="edit-action-btn primary-action" onClick={() => onAssignSystem(editingSystem.id, [])} title="Tag selected shapes on canvas">
+                  <IconTag size={12} />
                   Tag Selected
                 </button>
-                <button className="xs" onClick={() => onSelectBySystem(editingSystem.id)} title="Select all shapes assigned to this system on the canvas">
-                  Select All
+                <button className="edit-action-btn" onClick={() => onSelectBySystem(editingSystem.id)} title="Select all shapes in this system">
+                  <IconSelectAll size={12} />
                 </button>
-                <button className="xs" onClick={() => onDuplicateSystem(editingSystem.id)} title="Create a copy of this entry">
-                  Duplicate
+                <button className="edit-action-btn" onClick={() => onDuplicateSystem(editingSystem.id)} title="Duplicate entry">
+                  <IconCopy size={12} />
                 </button>
-                <button className="danger xs" onClick={() => { onSystemDelete(editingSystem.id); setEditingSystemId(null); }}>Delete</button>
+                <button className="edit-action-btn danger-action" onClick={() => { onSystemDelete(editingSystem.id); setEditingSystemId(null); }} title="Delete entry">
+                  <IconTrash size={12} />
+                </button>
               </div>
             </div>
           )}
 
-          <button className="add-btn" onClick={() => {
+          <button className="add-entry-btn" onClick={() => {
             const entry = newSystemEntry();
             onSystemUpsert(entry);
             setEditingSystemId(entry.id);
           }}>
-            + Add System Entry
+            <IconPlus size={13} />
+            Add System Entry
           </button>
         </div>
       )}
 
       {/* Apply actions */}
       <div className="action-bar">
-        <button className="primary" onClick={() => onApplyLegend("selection")} title="Apply legend styles to currently selected shapes">
+        <button className="apply-btn primary" onClick={() => onApplyLegend("selection")} title="Apply legend styles to selected shapes">
+          <IconBolt size={13} />
           Style Selection
         </button>
-        <button onClick={() => onApplyLegend("board")} title="Apply legend styles to all shapes on the board">
-          Style Entire Board
+        <button className="apply-btn" onClick={() => onApplyLegend("board")} title="Apply legend styles to entire board">
+          Style Board
         </button>
       </div>
     </div>
   );
 };
+
+/* Inline tiny bolt icon for apply button (avoid circular import) */
+const IconBolt = ({ size = 16 }: { size?: number }): JSX.Element => (
+  <svg width={size} height={size} viewBox="0 0 16 16" fill="currentColor" stroke="none">
+    <path d="M9 1L3 9h4.5l-1 6L13 7H8.5z" />
+  </svg>
+);

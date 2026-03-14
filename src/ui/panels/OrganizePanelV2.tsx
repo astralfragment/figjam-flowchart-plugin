@@ -1,6 +1,14 @@
 import { useState } from "react";
 import type { JSX } from "react";
 import { NumericInput } from "@ui/components/FormFields";
+import {
+  IconChevronDown,
+  IconChevronUp,
+  IconClose,
+  IconEye,
+  IconPlay,
+  IconSettings
+} from "@ui/components/Icons";
 import type {
   ApplyScope,
   ConnectorStyleOption,
@@ -31,73 +39,73 @@ const PRESET_OPTIONS: {
   {
     value: "flow_lr",
     title: "Flow \u2192",
-    description: "Left-to-right process maps and operational workflows.",
+    description: "Left-to-right process workflows",
     icon: (
       <svg viewBox="0 0 48 24" width="48" height="24">
-        <rect x="1" y="6" width="10" height="12" rx="2" fill="var(--teal)" opacity=".25" stroke="var(--teal)" strokeWidth="1" />
-        <line x1="12" y1="12" x2="18" y2="12" stroke="var(--t2)" strokeWidth="1" markerEnd="url(#arrowV2)" />
-        <rect x="19" y="6" width="10" height="12" rx="2" fill="var(--teal)" opacity=".25" stroke="var(--teal)" strokeWidth="1" />
-        <line x1="30" y1="12" x2="36" y2="12" stroke="var(--t2)" strokeWidth="1" markerEnd="url(#arrowV2)" />
-        <rect x="37" y="6" width="10" height="12" rx="2" fill="var(--teal)" opacity=".25" stroke="var(--teal)" strokeWidth="1" />
+        <rect x="1" y="6" width="10" height="12" rx="2.5" fill="var(--teal)" opacity=".2" stroke="var(--teal)" strokeWidth="1" />
+        <line x1="12" y1="12" x2="18" y2="12" stroke="var(--t3)" strokeWidth="1.2" markerEnd="url(#arrowV2)" />
+        <rect x="19" y="6" width="10" height="12" rx="2.5" fill="var(--teal)" opacity=".2" stroke="var(--teal)" strokeWidth="1" />
+        <line x1="30" y1="12" x2="36" y2="12" stroke="var(--t3)" strokeWidth="1.2" markerEnd="url(#arrowV2)" />
+        <rect x="37" y="6" width="10" height="12" rx="2.5" fill="var(--teal)" opacity=".2" stroke="var(--teal)" strokeWidth="1" />
       </svg>
     )
   },
   {
     value: "flow_tb",
     title: "Flow \u2193",
-    description: "Top-to-bottom sequential process with vertical layering.",
+    description: "Top-to-bottom vertical flow",
     icon: (
       <svg viewBox="0 0 24 48" width="24" height="48">
-        <rect x="4" y="1" width="16" height="10" rx="2" fill="var(--teal)" opacity=".25" stroke="var(--teal)" strokeWidth="1" />
-        <line x1="12" y1="12" x2="12" y2="18" stroke="var(--t2)" strokeWidth="1" />
-        <rect x="4" y="19" width="16" height="10" rx="2" fill="var(--teal)" opacity=".25" stroke="var(--teal)" strokeWidth="1" />
-        <line x1="12" y1="30" x2="12" y2="36" stroke="var(--t2)" strokeWidth="1" />
-        <rect x="4" y="37" width="16" height="10" rx="2" fill="var(--teal)" opacity=".25" stroke="var(--teal)" strokeWidth="1" />
+        <rect x="4" y="1" width="16" height="10" rx="2.5" fill="var(--teal)" opacity=".2" stroke="var(--teal)" strokeWidth="1" />
+        <line x1="12" y1="12" x2="12" y2="18" stroke="var(--t3)" strokeWidth="1.2" />
+        <rect x="4" y="19" width="16" height="10" rx="2.5" fill="var(--teal)" opacity=".2" stroke="var(--teal)" strokeWidth="1" />
+        <line x1="12" y1="30" x2="12" y2="36" stroke="var(--t3)" strokeWidth="1.2" />
+        <rect x="4" y="37" width="16" height="10" rx="2.5" fill="var(--teal)" opacity=".2" stroke="var(--teal)" strokeWidth="1" />
       </svg>
     )
   },
   {
     value: "tree",
     title: "Tree",
-    description: "Top-down branching with decision/fork separation and tree balancing.",
+    description: "Top-down branching hierarchy",
     icon: (
       <svg viewBox="0 0 48 36" width="48" height="36">
-        <rect x="17" y="1" width="14" height="8" rx="2" fill="var(--acc)" opacity=".2" stroke="var(--acc)" strokeWidth="1" />
-        <line x1="20" y1="10" x2="10" y2="18" stroke="var(--t2)" strokeWidth="1" />
-        <line x1="28" y1="10" x2="38" y2="18" stroke="var(--t2)" strokeWidth="1" />
-        <rect x="2" y="19" width="14" height="8" rx="2" fill="var(--teal)" opacity=".25" stroke="var(--teal)" strokeWidth="1" />
-        <rect x="32" y="19" width="14" height="8" rx="2" fill="var(--teal)" opacity=".25" stroke="var(--teal)" strokeWidth="1" />
+        <rect x="17" y="1" width="14" height="8" rx="2.5" fill="var(--acc)" opacity=".15" stroke="var(--acc)" strokeWidth="1" />
+        <line x1="21" y1="10" x2="10" y2="18" stroke="var(--t3)" strokeWidth="1.2" />
+        <line x1="27" y1="10" x2="38" y2="18" stroke="var(--t3)" strokeWidth="1.2" />
+        <rect x="2" y="19" width="14" height="8" rx="2.5" fill="var(--teal)" opacity=".2" stroke="var(--teal)" strokeWidth="1" />
+        <rect x="32" y="19" width="14" height="8" rx="2.5" fill="var(--teal)" opacity=".2" stroke="var(--teal)" strokeWidth="1" />
       </svg>
     )
   },
   {
     value: "swimlane",
     title: "Swimlane",
-    description: "Keeps system lanes aligned, reduces crossings within lanes.",
+    description: "Lanes with reduced crossings",
     icon: (
       <svg viewBox="0 0 48 32" width="48" height="32">
         <line x1="16" y1="0" x2="16" y2="32" stroke="var(--b2)" strokeWidth="1" strokeDasharray="2,2" />
         <line x1="32" y1="0" x2="32" y2="32" stroke="var(--b2)" strokeWidth="1" strokeDasharray="2,2" />
-        <rect x="3" y="4" width="10" height="6" rx="1.5" fill="var(--teal)" opacity=".25" stroke="var(--teal)" strokeWidth="1" />
-        <rect x="3" y="14" width="10" height="6" rx="1.5" fill="var(--teal)" opacity=".25" stroke="var(--teal)" strokeWidth="1" />
-        <rect x="19" y="8" width="10" height="6" rx="1.5" fill="var(--acc)" opacity=".2" stroke="var(--acc)" strokeWidth="1" />
-        <rect x="35" y="4" width="10" height="6" rx="1.5" fill="var(--teal)" opacity=".25" stroke="var(--teal)" strokeWidth="1" />
-        <rect x="35" y="18" width="10" height="6" rx="1.5" fill="var(--teal)" opacity=".25" stroke="var(--teal)" strokeWidth="1" />
+        <rect x="3" y="4" width="10" height="6" rx="2" fill="var(--teal)" opacity=".2" stroke="var(--teal)" strokeWidth="1" />
+        <rect x="3" y="14" width="10" height="6" rx="2" fill="var(--teal)" opacity=".2" stroke="var(--teal)" strokeWidth="1" />
+        <rect x="19" y="8" width="10" height="6" rx="2" fill="var(--acc)" opacity=".15" stroke="var(--acc)" strokeWidth="1" />
+        <rect x="35" y="4" width="10" height="6" rx="2" fill="var(--teal)" opacity=".2" stroke="var(--teal)" strokeWidth="1" />
+        <rect x="35" y="18" width="10" height="6" rx="2" fill="var(--teal)" opacity=".2" stroke="var(--teal)" strokeWidth="1" />
       </svg>
     )
   },
   {
     value: "compact",
     title: "Compact",
-    description: "Tight grid for smaller board footprint.",
+    description: "Tight grid, smaller footprint",
     icon: (
       <svg viewBox="0 0 36 28" width="36" height="28">
-        <rect x="1" y="1" width="10" height="8" rx="1.5" fill="var(--teal)" opacity=".25" stroke="var(--teal)" strokeWidth="1" />
-        <rect x="13" y="1" width="10" height="8" rx="1.5" fill="var(--teal)" opacity=".25" stroke="var(--teal)" strokeWidth="1" />
-        <rect x="25" y="1" width="10" height="8" rx="1.5" fill="var(--teal)" opacity=".25" stroke="var(--teal)" strokeWidth="1" />
-        <rect x="1" y="11" width="10" height="8" rx="1.5" fill="var(--teal)" opacity=".25" stroke="var(--teal)" strokeWidth="1" />
-        <rect x="13" y="11" width="10" height="8" rx="1.5" fill="var(--teal)" opacity=".25" stroke="var(--teal)" strokeWidth="1" />
-        <rect x="25" y="11" width="10" height="8" rx="1.5" fill="var(--teal)" opacity=".25" stroke="var(--teal)" strokeWidth="1" />
+        <rect x="1" y="1" width="10" height="8" rx="2" fill="var(--teal)" opacity=".2" stroke="var(--teal)" strokeWidth="1" />
+        <rect x="13" y="1" width="10" height="8" rx="2" fill="var(--teal)" opacity=".2" stroke="var(--teal)" strokeWidth="1" />
+        <rect x="25" y="1" width="10" height="8" rx="2" fill="var(--acc)" opacity=".15" stroke="var(--acc)" strokeWidth="1" />
+        <rect x="1" y="11" width="10" height="8" rx="2" fill="var(--acc)" opacity=".15" stroke="var(--acc)" strokeWidth="1" />
+        <rect x="13" y="11" width="10" height="8" rx="2" fill="var(--teal)" opacity=".2" stroke="var(--teal)" strokeWidth="1" />
+        <rect x="25" y="11" width="10" height="8" rx="2" fill="var(--teal)" opacity=".2" stroke="var(--teal)" strokeWidth="1" />
       </svg>
     )
   }
@@ -111,35 +119,35 @@ const CONNECTOR_STYLE_OPTIONS: {
 }[] = [
   {
     value: "clean", title: "Clean",
-    description: "Elbowed paths with spread ports.",
+    description: "Elbowed paths",
     icon: (
-      <svg viewBox="0 0 32 16" width="32" height="16">
-        <circle cx="2" cy="8" r="2" fill="var(--teal)" />
-        <path d="M4,8 H12 V2 H20 V8" stroke="var(--t2)" strokeWidth="1.2" fill="none" />
-        <circle cx="30" cy="8" r="2" fill="var(--teal)" />
-        <path d="M22,8 H30" stroke="var(--t2)" strokeWidth="1.2" fill="none" />
+      <svg viewBox="0 0 36 18" width="36" height="18">
+        <circle cx="3" cy="9" r="2.5" fill="var(--teal)" opacity=".3" stroke="var(--teal)" strokeWidth="0.8" />
+        <path d="M6,9 H14 V3 H22 V9" stroke="var(--t2)" strokeWidth="1.2" fill="none" strokeLinecap="round" />
+        <path d="M24,9 H33" stroke="var(--t2)" strokeWidth="1.2" fill="none" strokeLinecap="round" />
+        <circle cx="33" cy="9" r="2.5" fill="var(--teal)" opacity=".3" stroke="var(--teal)" strokeWidth="0.8" />
       </svg>
     )
   },
   {
     value: "smooth", title: "Smooth",
-    description: "Curved paths for organic look.",
+    description: "Curved paths",
     icon: (
-      <svg viewBox="0 0 32 16" width="32" height="16">
-        <circle cx="2" cy="12" r="2" fill="var(--teal)" />
-        <path d="M4,12 C14,12 18,4 30,4" stroke="var(--t2)" strokeWidth="1.2" fill="none" />
-        <circle cx="30" cy="4" r="2" fill="var(--teal)" />
+      <svg viewBox="0 0 36 18" width="36" height="18">
+        <circle cx="3" cy="14" r="2.5" fill="var(--teal)" opacity=".3" stroke="var(--teal)" strokeWidth="0.8" />
+        <path d="M6,14 C16,14 20,4 33,4" stroke="var(--t2)" strokeWidth="1.2" fill="none" strokeLinecap="round" />
+        <circle cx="33" cy="4" r="2.5" fill="var(--teal)" opacity=".3" stroke="var(--teal)" strokeWidth="0.8" />
       </svg>
     )
   },
   {
     value: "direct", title: "Direct",
-    description: "Straight point-to-point lines.",
+    description: "Straight lines",
     icon: (
-      <svg viewBox="0 0 32 16" width="32" height="16">
-        <circle cx="2" cy="12" r="2" fill="var(--teal)" />
-        <line x1="4" y1="12" x2="28" y2="4" stroke="var(--t2)" strokeWidth="1.2" />
-        <circle cx="30" cy="4" r="2" fill="var(--teal)" />
+      <svg viewBox="0 0 36 18" width="36" height="18">
+        <circle cx="3" cy="14" r="2.5" fill="var(--teal)" opacity=".3" stroke="var(--teal)" strokeWidth="0.8" />
+        <line x1="6" y1="14" x2="30" y2="4" stroke="var(--t2)" strokeWidth="1.2" strokeLinecap="round" />
+        <circle cx="33" cy="4" r="2.5" fill="var(--teal)" opacity=".3" stroke="var(--teal)" strokeWidth="0.8" />
       </svg>
     )
   }
@@ -174,13 +182,21 @@ export const OrganizePanelV2 = ({
           onClick={() => onScopeChange("selection")}
           title="Only organize currently selected shapes"
         >
-          Selection Only
+          <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+            <rect x="3" y="3" width="10" height="10" rx="1.5" strokeDasharray="2.5,2" />
+          </svg>
+          Selection
         </button>
         <button
           className={`scope-btn ${scope === "board" ? "active" : ""}`}
           onClick={() => onScopeChange("board")}
           title="Organize all shapes on the entire board"
         >
+          <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+            <rect x="1" y="1" width="14" height="14" rx="2" />
+            <rect x="4" y="4" width="3" height="3" rx=".5" fill="currentColor" opacity=".3" />
+            <rect x="9" y="9" width="3" height="3" rx=".5" fill="currentColor" opacity=".3" />
+          </svg>
           Entire Board
         </button>
       </div>
@@ -189,7 +205,7 @@ export const OrganizePanelV2 = ({
       <div className="section-hd">
         <div>
           <h3>Layout</h3>
-          <p>Choose how nodes are arranged.</p>
+          <p>Arrange nodes by structure.</p>
         </div>
       </div>
       <div className="layout-preset-grid">
@@ -211,11 +227,12 @@ export const OrganizePanelV2 = ({
       <div className="section-hd">
         <div>
           <h3>Spacing</h3>
-          <p>{SPACING_LABELS[spacingLabelIndex(config.spacingValue)]} — increase when connectors bunch together.</p>
+          <p>{SPACING_LABELS[spacingLabelIndex(config.spacingValue)]}</p>
         </div>
+        <span className="spacing-value-badge">{config.spacingValue}%</span>
       </div>
       <div className="spacing-slider-row">
-        <span className="spacing-label">Compact</span>
+        <span className="spacing-label">Tight</span>
         <input
           type="range"
           className="spacing-slider"
@@ -225,14 +242,14 @@ export const OrganizePanelV2 = ({
           value={config.spacingValue}
           onChange={(e) => onConfigChange({ ...config, spacingValue: Number(e.target.value) })}
         />
-        <span className="spacing-label">Spacious</span>
+        <span className="spacing-label">Wide</span>
       </div>
 
       {/* Connector Style */}
       <div className="section-hd">
         <div>
-          <h3>Connector style</h3>
-          <p>How connectors are drawn after layout.</p>
+          <h3>Connectors</h3>
+          <p>Path routing style.</p>
         </div>
       </div>
       <div className="connector-style-group">
@@ -252,10 +269,12 @@ export const OrganizePanelV2 = ({
 
       {/* Preview / Run Buttons */}
       <div className="organize-actions">
-        <button className="organize-preview-btn" onClick={onPreview} title="Dry-run the layout to see statistics before committing changes">
+        <button className="organize-preview-btn" onClick={onPreview} title="Dry-run to preview layout statistics">
+          <IconEye size={14} />
           Preview
         </button>
         <button className="organize-run-btn primary" onClick={onRun}>
+          <IconPlay size={13} />
           Organize Now
         </button>
       </div>
@@ -264,44 +283,62 @@ export const OrganizePanelV2 = ({
       {preview && (
         <div className="preview-results">
           <div className="preview-header">
-            <strong>Preview Results</strong>
-            <button className="toast-x" onClick={onDismissPreview}>&times;</button>
+            <div className="preview-title">
+              <IconEye size={13} />
+              <strong>Preview</strong>
+            </div>
+            <button className="close-btn" onClick={onDismissPreview} aria-label="Dismiss">
+              <IconClose size={12} />
+            </button>
           </div>
           <div className="diagnostics-grid">
-            <div><strong>{preview.wouldMove}</strong><span>would move</span></div>
-            <div><strong>{preview.wouldSkip}</strong><span>unchanged</span></div>
-            <div><strong>{preview.componentCount}</strong><span>components</span></div>
-            <div>
-              <strong>{preview.boundingBox.width} &times; {preview.boundingBox.height}</strong>
-              <span>bounding box (px)</span>
+            <div className="diag-cell">
+              <strong>{preview.wouldMove}</strong>
+              <span>would move</span>
+            </div>
+            <div className="diag-cell">
+              <strong>{preview.wouldSkip}</strong>
+              <span>unchanged</span>
+            </div>
+            <div className="diag-cell">
+              <strong>{preview.componentCount}</strong>
+              <span>components</span>
+            </div>
+            <div className="diag-cell">
+              <strong>{preview.boundingBox.width}&times;{preview.boundingBox.height}</strong>
+              <span>bounding box</span>
             </div>
           </div>
-          <p className="preview-hint">Click "Organize Now" to apply these changes.</p>
+          <p className="preview-hint">Click &ldquo;Organize Now&rdquo; to apply.</p>
         </div>
       )}
 
       {/* Advanced */}
-      <button className="ghost sm" onClick={() => setShowAdvanced((c) => !c)}>
-        {showAdvanced ? "\u25B4 Hide advanced" : "\u25BE Advanced settings"}
+      <button className="advanced-toggle" onClick={() => setShowAdvanced((c) => !c)}>
+        <IconSettings size={12} />
+        Advanced
+        {showAdvanced ? <IconChevronUp size={12} /> : <IconChevronDown size={12} />}
       </button>
       {showAdvanced && (
-        <div className="grid-2">
-          <NumericInput
-            label="Node gap"
-            value={config.nodeGap}
-            min={20}
-            max={400}
-            step={10}
-            onChange={(v) => onConfigChange({ ...config, nodeGap: v })}
-          />
-          <NumericInput
-            label="Lane gap"
-            value={config.laneGap}
-            min={60}
-            max={600}
-            step={20}
-            onChange={(v) => onConfigChange({ ...config, laneGap: v })}
-          />
+        <div className="advanced-panel">
+          <div className="grid-2">
+            <NumericInput
+              label="Node gap"
+              value={config.nodeGap}
+              min={20}
+              max={400}
+              step={10}
+              onChange={(v) => onConfigChange({ ...config, nodeGap: v })}
+            />
+            <NumericInput
+              label="Lane gap"
+              value={config.laneGap}
+              min={60}
+              max={600}
+              step={20}
+              onChange={(v) => onConfigChange({ ...config, laneGap: v })}
+            />
+          </div>
           <label className="field field--check">
             <input
               type="checkbox"
@@ -326,22 +363,22 @@ export const OrganizePanelV2 = ({
         <div className="card organize-diagnostics">
           <div className="section-hd">
             <div>
-              <h3>Run diagnostics</h3>
-              <p>Latest organize analysis.</p>
+              <h3>Last Run</h3>
+              <p>Layout analysis results.</p>
             </div>
           </div>
           <div className="diagnostics-grid">
-            <div><strong>{diagnostics.componentCount}</strong><span>components</span></div>
-            <div><strong>{diagnostics.decisionsDetected}</strong><span>decisions</span></div>
-            <div><strong>{diagnostics.mergesDetected}</strong><span>merges</span></div>
-            <div><strong>{diagnostics.forksDetected}</strong><span>forks</span></div>
-            <div><strong>{diagnostics.crossingsBefore}</strong><span>crossings before</span></div>
-            <div><strong>{diagnostics.crossingsAfter}</strong><span>crossings after</span></div>
-            <div className="diag-highlight">
+            <div className="diag-cell"><strong>{diagnostics.componentCount}</strong><span>components</span></div>
+            <div className="diag-cell"><strong>{diagnostics.decisionsDetected}</strong><span>decisions</span></div>
+            <div className="diag-cell"><strong>{diagnostics.mergesDetected}</strong><span>merges</span></div>
+            <div className="diag-cell"><strong>{diagnostics.forksDetected}</strong><span>forks</span></div>
+            <div className="diag-cell"><strong>{diagnostics.crossingsBefore}</strong><span>crossings before</span></div>
+            <div className="diag-cell"><strong>{diagnostics.crossingsAfter}</strong><span>crossings after</span></div>
+            <div className="diag-cell diag-highlight">
               <strong>{diagnostics.crossingReductionPercent}%</strong>
               <span>reduction</span>
             </div>
-            <div><strong>{diagnostics.connectorsProcessed}</strong><span>connectors processed</span></div>
+            <div className="diag-cell"><strong>{diagnostics.connectorsProcessed}</strong><span>connectors</span></div>
           </div>
         </div>
       )}
@@ -350,7 +387,7 @@ export const OrganizePanelV2 = ({
       <svg width="0" height="0" style={{ position: "absolute" }}>
         <defs>
           <marker id="arrowV2" markerWidth="6" markerHeight="4" refX="5" refY="2" orient="auto">
-            <path d="M0,0 L6,2 L0,4" fill="var(--t2)" />
+            <path d="M0,0 L6,2 L0,4" fill="var(--t3)" />
           </marker>
         </defs>
       </svg>
