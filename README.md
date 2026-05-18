@@ -1,16 +1,18 @@
-# LegendFlow Manager (GridMarshal)
+# Fragment Flow
 
-LegendFlow Manager is a FigJam-only plugin for standardizing disorganized diagrams with deterministic, selection-first operations.
+Fragment Flow is a FigJam-only plugin for turning diagram fragments into reusable legends, applying those legends to selected shapes, and organizing flowcharts with deterministic, selection-first operations.
 
 ## What it does
 
-- Manage reusable shape style presets.
-- Define legend categories and map categories to style rules.
-- Manage connector style presets and normalize connectors.
+- Convert selected board legends into reusable entries.
+- Save, load, and delete reusable legend sets.
+- Create or update shape and system entries from selected FigJam shapes.
+- Bulk apply legends to selected diagram shapes with a grouped resolver.
 - Organize diagrams with guided layout presets:
-  - `Process LR`
-  - `Hierarchy TB`
-  - `Swimlane by Category`
+  - `Flow ->`
+  - `Flow down`
+  - `Tree`
+  - `Swimlane`
 
 ## Tech stack
 
@@ -22,7 +24,7 @@ LegendFlow Manager is a FigJam-only plugin for standardizing disorganized diagra
 
 ## Project structure
 
-- `src/main/code.ts`: FigJam runtime entry, message routing, operations.
+- `src/main/fragmentFlowPlugin.ts`: FigJam runtime entry, message routing, operations.
 - `src/ui/App.tsx`: tabbed panel UI.
 - `src/core/styles/*`: shape preset CRUD/apply logic.
 - `src/core/legend/*`: category assignment and legend mapping.
@@ -33,10 +35,10 @@ LegendFlow Manager is a FigJam-only plugin for standardizing disorganized diagra
 
 ## State and persistence
 
-- Namespace: `legendflow.manager`
-- Key: `state.v1`
+- Namespace: legacy-compatible plugin storage
+- Key: current state bundle
 - Storage: file-local plugin data (`figma.root.setPluginData`)
-- Import/export: JSON bundle with `schemaVersion: 1`
+- Import/export: JSON bundle with `schemaVersion: 2`
 
 ## Setup
 
@@ -56,17 +58,16 @@ npm run build
    1. Open `Plugins` -> `Development` -> `Import plugin from manifest...`
    2. Select `manifest.json` from this project.
 
-4. Open a FigJam file and run `LegendFlow Manager` from Development plugins.
+4. Open a FigJam file and run `Fragment Flow` from Development plugins.
 
 ## End-to-end usage
 
 1. Open the plugin in a FigJam board.
-2. In `Styles`, create shape presets and save.
-3. In `Legend`, create categories and bind each category to a shape preset (optional connector preset).
-4. Select shapes on the board and click `Assign to selection` for the relevant category.
-5. Click `Apply legend mapping` to enforce mapped styling.
-6. In `Connectors`, create or choose a preset and click `Normalize`.
-7. In `Organize`, choose layout preset + spacing and click `Run organize`.
+2. In `Legend`, create shape roles and systems, or convert an existing selected legend.
+3. Save the current legend as a reusable set.
+4. Select shapes on the board and use quick create, import style, or bulk apply.
+5. Use the resolver when selected shapes cannot be confidently matched.
+6. In `Organize`, choose layout preset + spacing and click `Organize Now`.
 8. If needed, use native FigJam Undo (`Ctrl+Z` / `Cmd+Z`).
 9. Use `Export` to save presets as JSON.
 10. Use `Import` in another file to reuse presets.
@@ -83,4 +84,4 @@ npm test           # Run unit tests
 
 - Corner radius for FigJam `SHAPE_WITH_TEXT` is currently read-only in the plugin API; radius values are stored but cannot be mutated at runtime.
 - Default operation scope is selection-first; you can switch to entire board in the UI.
-- No telemetry is implemented in v1.
+- No telemetry is implemented.

@@ -1,4 +1,4 @@
-import { defaultState, defaultStateV2 } from "@shared/defaults";
+import { defaultLegacyState, defaultState } from "@shared/defaults";
 import { normalizeHexColor } from "@core/common/paint";
 import type {
   ConnectorPathType,
@@ -6,10 +6,11 @@ import type {
   FigJamShapeType,
   LayoutRole,
   LegendCategory,
+  LegendSet,
   LegendSemanticRole,
-  PluginStateV1,
-  PluginStateV2,
-  PresetBundleV1,
+  LegacyPluginState,
+  PluginState,
+  LegacyPresetBundle,
   NodeAssignments,
   ShapeLegendEntry,
   ShapeStylePreset,
@@ -175,8 +176,8 @@ const normalizeCategory = (
   };
 };
 
-export const sanitizeState = (raw: unknown): PluginStateV1 => {
-  const baseline = defaultState();
+export const sanitizeLegacyState = (raw: unknown): LegacyPluginState => {
+  const baseline = defaultLegacyState();
   if (!isObject(raw)) {
     return baseline;
   }
@@ -221,7 +222,7 @@ export const sanitizeState = (raw: unknown): PluginStateV1 => {
   };
 };
 
-export const toPresetBundle = (state: PluginStateV1, namespace: string): PresetBundleV1 => ({
+export const toPresetBundle = (state: LegacyPluginState, namespace: string): LegacyPresetBundle => ({
   schemaVersion: 1,
   namespace,
   exportedAt: new Date().toISOString(),
@@ -230,7 +231,7 @@ export const toPresetBundle = (state: PluginStateV1, namespace: string): PresetB
   categories: state.categories
 });
 
-// ─── V1 → V2 Migration ─────────────────────────────────────────────
+// ─── Legacy Migration ──────────────────────────────────────────────
 
 const SEMANTIC_ROLE_TO_LAYOUT_ROLE: Record<LegendSemanticRole, LayoutRole> = {
   process: "process",
@@ -245,7 +246,7 @@ const VALID_LAYOUT_ROLES: ReadonlySet<string> = new Set<LayoutRole>([
   "loop", "io", "manual", "subprocess", "annotation", "delay", "default"
 ]);
 
-export const migrateV1toV2 = (v1: PluginStateV1): PluginStateV2 => {
+export const migrateLegacyState = (v1: LegacyPluginState): PluginState => {
   const shapeEntries: ShapeLegendEntry[] = [];
   const systemEntries: SystemLegendEntry[] = [];
   const categoryIdToEntryId = new Map<string, string>();
@@ -295,7 +296,8 @@ export const migrateV1toV2 = (v1: PluginStateV1): PluginStateV2 => {
     schemaVersion: 2,
     themeMode: v1.themeMode,
     systemEntries,
-    shapeEntries: shapeEntries.length > 0 ? shapeEntries : defaultStateV2().shapeEntries,
+    shapeEntries: shapeEntries.length > 0 ? shapeEntries : defaultState().shapeEntries,
+    legendSets: [],
     nodeAssignments: { system: {}, shape: shapeAssignments }
   };
 };
@@ -356,8 +358,31 @@ const normalizeShapeEntry = (value: unknown): ShapeLegendEntry | null => {
   };
 };
 
-export const sanitizeStateV2 = (raw: unknown): PluginStateV2 => {
-  const baseline = defaultStateV2();
+const normalizeLegendSet = (value: unknown): LegendSet | null => {
+  if (!isObject(value)) return null;
+  const id = asString(value.id);
+  const name = asString(value.name);
+  if (!id || !name) return null;
+
+  const systemEntries = Array.isArray(value.systemEntries)
+    ? value.systemEntries.map(normalizeSystemEntry).filter((entry): entry is SystemLegendEntry => entry !== null)
+    : [];
+  const shapeEntries = Array.isArray(value.shapeEntries)
+    ? value.shapeEntries.map(normalizeShapeEntry).filter((entry): entry is ShapeLegendEntry => entry !== null)
+    : [];
+
+  return {
+    id,
+    name,
+    createdAt: asString(value.createdAt, new Date().toISOString()),
+    updatedAt: asString(value.updatedAt, new Date().toISOString()),
+    systemEntries,
+    shapeEntries
+  };
+};
+
+export const sanitizeState = (raw: unknown): PluginState => {
+  const baseline = defaultState();
   if (!isObject(raw)) return baseline;
 
   const systemEntries = Array.isArray(raw.systemEntries)
@@ -385,21 +410,28 @@ export const sanitizeStateV2 = (raw: unknown): PluginStateV2 => {
       }
     : { system: {}, shape: {} };
 
+  const legendSets = Array.isArray(raw.legendSets)
+    ? raw.legendSets.map(normalizeLegendSet).filter((set): set is LegendSet => set !== null)
+    : [];
+  const activeLegendSetId = asString(raw.activeLegendSetId) || undefined;
+
   return {
     schemaVersion: 2,
     themeMode: raw.themeMode === "dark" ? "dark" : "light",
     systemEntries,
     shapeEntries: shapeEntries.length > 0 ? shapeEntries : baseline.shapeEntries,
+    legendSets,
+    activeLegendSetId: legendSets.some((set) => set.id === activeLegendSetId) ? activeLegendSetId : undefined,
     nodeAssignments
   };
 };
 
-export const sanitizeBundle = (raw: unknown): PresetBundleV1 | null => {
+export const sanitizeBundle = (raw: unknown): LegacyPresetBundle | null => {
   if (!isObject(raw) || raw.schemaVersion !== 1) {
     return null;
   }
 
-  const sanitized = sanitizeState({
+  const sanitized = sanitizeLegacyState({
     schemaVersion: 1,
     themeMode: "light",
     shapePresets: raw.shapePresets,
@@ -417,3 +449,4 @@ export const sanitizeBundle = (raw: unknown): PresetBundleV1 | null => {
     categories: sanitized.categories
   };
 };
+

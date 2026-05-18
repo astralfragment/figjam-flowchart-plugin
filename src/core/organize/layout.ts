@@ -16,7 +16,7 @@ import type {
   OrganizeConfig,
   OrganizeNodePlacement,
   OrganizeRunDiagnostics,
-  PluginStateV1
+  LegacyPluginState
 } from "@shared/types";
 
 type LayoutOrientation = "horizontal" | "vertical";
@@ -498,7 +498,7 @@ const normalizePathType = (
   };
 };
 
-const getLaneIndexMap = (nodes: readonly OrganizeGraphNode[], state: PluginStateV1): Map<string, number> => {
+const getLaneIndexMap = (nodes: readonly OrganizeGraphNode[], state: LegacyPluginState): Map<string, number> => {
   const categories = [...state.categories].sort((a, b) => a.order - b.order || a.label.localeCompare(b.label));
   const laneIndexByCategoryId = new Map(categories.map((category, index) => [category.id, index]));
   const unknownLane = categories.length;
@@ -1130,7 +1130,7 @@ export const computeOrganizeLayout = (
   nodes: OrganizeInputNode[],
   connectors: OrganizeInputConnector[],
   config: OrganizeConfig,
-  state: PluginStateV1
+  state: LegacyPluginState
 ): OrganizeComputationResult => {
   const graph = extractOrganizeGraph(nodes, connectors);
   const requestedMode = config.routingMode;
@@ -1241,3 +1241,4 @@ export const computeOrganizeLayout = (
 };
 
 export type { OrganizeInputConnector, OrganizeInputNode };
+

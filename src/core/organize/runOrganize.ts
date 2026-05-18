@@ -10,7 +10,7 @@ import type {
   ApplyScope,
   OrganizeConfig,
   OrganizeRunDiagnostics,
-  PluginStateV1
+  LegacyPluginState
 } from "@shared/types";
 
 const rounded = (value: number): number => Math.round(value * 100) / 100;
@@ -95,7 +95,7 @@ const cloneConnectorStyle = (
 };
 
 export const runOrganize = (
-  state: PluginStateV1,
+  state: LegacyPluginState,
   config: OrganizeConfig,
   scope: ApplyScope
 ): ActionResult => {
@@ -207,3 +207,4 @@ export const runOrganize = (
     organizeDiagnostics: layout.diagnostics
   };
 };
+

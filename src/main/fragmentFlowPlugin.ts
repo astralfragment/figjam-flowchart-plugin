@@ -1,6 +1,28 @@
-import { loadPluginStateV2, savePluginStateV2 } from "@core/persistence/storage";
-import type { MainToUIV2, UIToMainV2 } from "@shared/contracts";
-import type { ActionResult, LayoutRole, PluginStateV2, SelectionSummaryV2, ShapeLegendEntry, SystemLegendEntry } from "@shared/types";
+import { loadPluginState, savePluginState } from "@core/persistence/storage";
+import { getNodesInScope } from "@core/common/selection";
+import {
+  buildBulkApplyPreview,
+  candidateFromShapeNode,
+  collectShapeNodes,
+  shapeEntryFromCandidate,
+  systemEntryFromCandidate,
+  updateShapeEntryStyle,
+  updateSystemEntryStyle
+} from "@core/legend/selectionStyle";
+import type { MainToUI, UIToMain } from "@shared/contracts";
+import type {
+  ActionResult,
+  ApplyScope,
+  BulkApplyDecision,
+  BulkApplyPreview,
+  LayoutRole,
+  PluginState,
+  SelectionSummary,
+  ShapeLegendEntry,
+  SystemLegendEntry,
+  LegendConversionCandidate,
+  LegendConversionDecision
+} from "@shared/types";
 
 declare const __UI_HTML__: string;
 
@@ -14,16 +36,17 @@ const clamp = (value: number, min: number, max: number): number =>
 
 figma.showUI(__UI_HTML__, {
   ...UI_SIZE,
-  title: "LegendFlow Manager"
+  title: "Fragment Flow"
 });
 
-let state = loadPluginStateV2();
+let state = loadPluginState();
+let pendingConversionCandidates: LegendConversionCandidate[] = [];
 
-const postMessage = (message: MainToUIV2): void => {
+const postMessage = (message: MainToUI): void => {
   figma.ui.postMessage(message);
 };
 
-const getSelectionSummaryV2 = (): SelectionSummaryV2 => {
+const getSelectionSummary = (): SelectionSummary => {
   const selected = figma.currentPage.selection;
   const shapeNodes = selected.filter((node): node is ShapeWithTextNode => node.type === "SHAPE_WITH_TEXT");
   const shapes = shapeNodes.length;
@@ -57,6 +80,10 @@ const getSelectionSummaryV2 = (): SelectionSummaryV2 => {
     .filter((e) => (shapeCounts.get(e.id) ?? 0) > 0)
     .map((e) => ({ entryId: e.id, name: e.name, role: e.layoutRole, count: shapeCounts.get(e.id) ?? 0 }));
 
+  const quickCreatePreview = shapeNodes.length === 1
+    ? candidateFromShapeNode(shapeNodes[0], 0)
+    : undefined;
+
   return {
     total: selected.length,
     shapes,
@@ -65,16 +92,17 @@ const getSelectionSummaryV2 = (): SelectionSummaryV2 => {
     shapeAssignedCount,
     unmappedCount: Math.max(0, unmappedCount),
     systemBreakdown,
-    shapeBreakdown
+    shapeBreakdown,
+    quickCreatePreview
   };
 };
 
 const sendInitState = (): void => {
-  postMessage({ type: "INIT_STATE_V2", state });
+  postMessage({ type: "INIT_STATE", state });
 };
 
 const sendSelectionState = (): void => {
-  postMessage({ type: "SELECTION_STATE_V2", selection: getSelectionSummaryV2() });
+  postMessage({ type: "SELECTION_STATE", selection: getSelectionSummary() });
 };
 
 const sendValidationError = (action: string, message: string): void => {
@@ -94,7 +122,7 @@ const sendActionResult = (result: ActionResult): void => {
   figma.notify(result.message, { timeout: 1500 });
 };
 
-// ─── V2 Legend Helpers ──────────────────────────────────────────────
+// ─── Legend Helpers ──────────────────────────────────────────────
 
 const upsertSystemEntry = (entry: SystemLegendEntry): void => {
   const idx = state.systemEntries.findIndex((e) => e.id === entry.id);
@@ -118,7 +146,350 @@ const upsertShapeEntry = (entry: ShapeLegendEntry): void => {
   state = { ...state, shapeEntries: next };
 };
 
-const applyLegendV2 = async (scope: import("@shared/types").ApplyScope): Promise<ActionResult> => {
+const cloneSystemEntries = (entries: SystemLegendEntry[]): SystemLegendEntry[] =>
+  entries.map((entry) => ({ ...entry }));
+
+const cloneShapeEntries = (entries: ShapeLegendEntry[]): ShapeLegendEntry[] =>
+  entries.map((entry) => ({ ...entry }));
+
+const saveLegendSet = (name: string): ActionResult => {
+  const trimmedName = name.trim() || "Untitled set";
+  const now = new Date().toISOString();
+  const existing = state.legendSets.find((set) => set.name.toLowerCase() === trimmedName.toLowerCase());
+  const setId = existing?.id ?? `legend-set-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const nextSet = {
+    id: setId,
+    name: trimmedName,
+    createdAt: existing?.createdAt ?? now,
+    updatedAt: now,
+    systemEntries: cloneSystemEntries(state.systemEntries),
+    shapeEntries: cloneShapeEntries(state.shapeEntries)
+  };
+
+  state = {
+    ...state,
+    activeLegendSetId: setId,
+    legendSets: existing
+      ? state.legendSets.map((set) => (set.id === setId ? nextSet : set))
+      : [...state.legendSets, nextSet]
+  };
+  savePluginState(state);
+  sendInitState();
+
+  return {
+    action: "SAVE_LEGEND_SET",
+    severity: "info",
+    message: existing ? `Updated legend set "${trimmedName}".` : `Created legend set "${trimmedName}".`,
+    changed: 1,
+    skipped: 0
+  };
+};
+
+const loadLegendSet = (setId: string): ActionResult => {
+  const legendSet = state.legendSets.find((set) => set.id === setId);
+  if (!legendSet) {
+    return {
+      action: "LOAD_LEGEND_SET",
+      severity: "warning",
+      message: "Legend set was not found.",
+      changed: 0,
+      skipped: 1
+    };
+  }
+
+  state = {
+    ...state,
+    activeLegendSetId: legendSet.id,
+    systemEntries: cloneSystemEntries(legendSet.systemEntries),
+    shapeEntries: cloneShapeEntries(legendSet.shapeEntries),
+    nodeAssignments: { system: {}, shape: {} }
+  };
+  savePluginState(state);
+  sendInitState();
+  sendSelectionState();
+
+  return {
+    action: "LOAD_LEGEND_SET",
+    severity: "info",
+    message: `Loaded legend set "${legendSet.name}".`,
+    changed: legendSet.systemEntries.length + legendSet.shapeEntries.length,
+    skipped: 0
+  };
+};
+
+const deleteLegendSet = (setId: string): ActionResult => {
+  const legendSet = state.legendSets.find((set) => set.id === setId);
+  if (!legendSet) {
+    return {
+      action: "DELETE_LEGEND_SET",
+      severity: "warning",
+      message: "Legend set was not found.",
+      changed: 0,
+      skipped: 1
+    };
+  }
+
+  state = {
+    ...state,
+    activeLegendSetId: state.activeLegendSetId === setId ? undefined : state.activeLegendSetId,
+    legendSets: state.legendSets.filter((set) => set.id !== setId)
+  };
+  savePluginState(state);
+  sendInitState();
+
+  return {
+    action: "DELETE_LEGEND_SET",
+    severity: "info",
+    message: `Deleted legend set "${legendSet.name}".`,
+    changed: 1,
+    skipped: 0
+  };
+};
+
+const createConversionPreview = (): LegendConversionCandidate[] => {
+  return collectShapeNodes(figma.currentPage.selection)
+    .map(candidateFromShapeNode)
+    .filter((candidate) => candidate.label.length > 0);
+};
+
+const commitLegendConversion = (decisions: LegendConversionDecision[]): ActionResult => {
+  const candidates = new Map(pendingConversionCandidates.map((candidate) => [candidate.id, candidate]));
+  const nextSystems = [...state.systemEntries];
+  const nextShapes = [...state.shapeEntries];
+  let changed = 0;
+  let skipped = 0;
+
+  for (const decision of decisions) {
+    if (decision.kind === "ignore") {
+      skipped++;
+      continue;
+    }
+
+    const candidate = candidates.get(decision.candidateId);
+    if (!candidate) {
+      skipped++;
+      continue;
+    }
+
+    if (decision.kind === "system") {
+      nextSystems.push(systemEntryFromCandidate(candidate, decision, createEntryId("system"), nextSystems.length + 1));
+      changed++;
+      continue;
+    }
+
+    nextShapes.push(shapeEntryFromCandidate(candidate, decision, createEntryId("shape"), nextShapes.length + 1));
+    changed++;
+  }
+
+  state = { ...state, systemEntries: nextSystems, shapeEntries: nextShapes };
+  savePluginState(state);
+  pendingConversionCandidates = [];
+  sendInitState();
+
+  return {
+    action: "COMMIT_LEGEND_CONVERSION",
+    severity: changed > 0 ? "info" : "warning",
+    message: changed > 0 ? `Converted ${changed} legend item(s).` : "No legend items were converted.",
+    changed,
+    skipped
+  };
+};
+
+const createEntryId = (prefix: "shape" | "system"): string =>
+  `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+const quickCreateFromSelection = (
+  kind: Exclude<LegendConversionDecision["kind"], "ignore">,
+  name: string,
+  layoutRole: LayoutRole
+): ActionResult => {
+  const selectedShape = figma.currentPage.selection.find((node): node is ShapeWithTextNode => node.type === "SHAPE_WITH_TEXT");
+  if (!selectedShape) {
+    return {
+      action: "QUICK_CREATE_FROM_SELECTION",
+      severity: "warning",
+      message: "Select one shape first.",
+      changed: 0,
+      skipped: 0
+    };
+  }
+
+  const candidate = candidateFromShapeNode(selectedShape, 0);
+  const decision: LegendConversionDecision = {
+    candidateId: candidate.id,
+    kind,
+    name: name.trim() || candidate.label,
+    layoutRole
+  };
+
+  if (kind === "system") {
+    const entry = systemEntryFromCandidate(candidate, decision, createEntryId("system"), state.systemEntries.length + 1);
+    const system = { ...state.nodeAssignments.system, [selectedShape.id]: entry.id };
+    state = {
+      ...state,
+      systemEntries: [...state.systemEntries, entry],
+      nodeAssignments: { ...state.nodeAssignments, system }
+    };
+    savePluginState(state);
+    sendInitState();
+    sendSelectionState();
+    return {
+      action: "QUICK_CREATE_FROM_SELECTION",
+      severity: "info",
+      message: `Created system "${entry.name}" and tagged selection.`,
+      changed: 2,
+      skipped: 0
+    };
+  }
+
+  const entry = shapeEntryFromCandidate(candidate, decision, createEntryId("shape"), state.shapeEntries.length + 1);
+  const shape = { ...state.nodeAssignments.shape, [selectedShape.id]: entry.id };
+  state = {
+    ...state,
+    shapeEntries: [...state.shapeEntries, entry],
+    nodeAssignments: { ...state.nodeAssignments, shape }
+  };
+  savePluginState(state);
+  sendInitState();
+  sendSelectionState();
+  return {
+    action: "QUICK_CREATE_FROM_SELECTION",
+    severity: "info",
+    message: `Created shape role "${entry.name}" and tagged selection.`,
+    changed: 2,
+    skipped: 0
+  };
+};
+
+const importSelectedStyleIntoEntry = (
+  kind: Exclude<LegendConversionDecision["kind"], "ignore">,
+  entryId: string
+): ActionResult => {
+  const selectedShapes = figma.currentPage.selection.filter((node): node is ShapeWithTextNode => node.type === "SHAPE_WITH_TEXT");
+  if (selectedShapes.length !== 1) {
+    return {
+      action: "IMPORT_SELECTED_STYLE_INTO_ENTRY",
+      severity: "warning",
+      message: "Select exactly one shape to import its style.",
+      changed: 0,
+      skipped: selectedShapes.length
+    };
+  }
+
+  const candidate = candidateFromShapeNode(selectedShapes[0], 0);
+
+  if (kind === "shape") {
+    const existing = state.shapeEntries.find((entry) => entry.id === entryId);
+    if (!existing) {
+      return {
+        action: "IMPORT_SELECTED_STYLE_INTO_ENTRY",
+        severity: "warning",
+        message: "Shape entry was not found.",
+        changed: 0,
+        skipped: 1
+      };
+    }
+    state = {
+      ...state,
+      shapeEntries: state.shapeEntries.map((entry) =>
+        entry.id === entryId ? updateShapeEntryStyle(entry, candidate) : entry
+      )
+    };
+  } else {
+    const existing = state.systemEntries.find((entry) => entry.id === entryId);
+    if (!existing) {
+      return {
+        action: "IMPORT_SELECTED_STYLE_INTO_ENTRY",
+        severity: "warning",
+        message: "System entry was not found.",
+        changed: 0,
+        skipped: 1
+      };
+    }
+    state = {
+      ...state,
+      systemEntries: state.systemEntries.map((entry) =>
+        entry.id === entryId ? updateSystemEntryStyle(entry, candidate) : entry
+      )
+    };
+  }
+
+  savePluginState(state);
+  sendInitState();
+  sendSelectionState();
+
+  return {
+    action: "IMPORT_SELECTED_STYLE_INTO_ENTRY",
+    severity: "info",
+    message: "Imported selected style into legend entry.",
+    changed: 1,
+    skipped: 0
+  };
+};
+
+const createBulkApplyPreview = (scope: ApplyScope): BulkApplyPreview => {
+  const shapes = collectShapeNodes(getNodesInScope(scope));
+  return buildBulkApplyPreview(shapes, state.shapeEntries, state.systemEntries);
+};
+
+const commitBulkApply = async (
+  preview: BulkApplyPreview,
+  decisions: BulkApplyDecision[],
+  scope: ApplyScope
+): Promise<ActionResult> => {
+  const shape = { ...state.nodeAssignments.shape };
+  const system = { ...state.nodeAssignments.system };
+  let assignments = 0;
+  let skipped = 0;
+
+  const applyToNode = (nodeId: string, shapeEntryId?: string, systemEntryId?: string): void => {
+    if (shapeEntryId) {
+      shape[nodeId] = shapeEntryId;
+      assignments++;
+    }
+    if (systemEntryId) {
+      system[nodeId] = systemEntryId;
+      assignments++;
+    }
+    if (!shapeEntryId && !systemEntryId) {
+      skipped++;
+    }
+  };
+
+  for (const match of preview.autoMatches) {
+    applyToNode(match.nodeId, match.shapeEntryId, match.systemEntryId);
+  }
+
+  const decisionByGroup = new Map(decisions.map((decision) => [decision.groupId, decision]));
+  for (const group of preview.groups) {
+    const decision = decisionByGroup.get(group.id);
+    if (!decision) {
+      skipped += group.nodeIds.length;
+      continue;
+    }
+    for (const nodeId of group.nodeIds) {
+      applyToNode(nodeId, decision.shapeEntryId, decision.systemEntryId);
+    }
+  }
+
+  state = { ...state, nodeAssignments: { system, shape } };
+  savePluginState(state);
+  sendInitState();
+  const applyResult = await applyLegend(scope);
+  sendSelectionState();
+
+  return {
+    action: "COMMIT_BULK_APPLY",
+    severity: assignments > 0 ? "info" : "warning",
+    message: assignments > 0
+      ? `Applied legend to selection. ${assignments} assignment(s), ${applyResult.changed} styled element(s).`
+      : "No legend mappings were applied.",
+    changed: assignments + applyResult.changed,
+    skipped: skipped + applyResult.skipped
+  };
+};
+
+const applyLegend = async (scope: ApplyScope): Promise<ActionResult> => {
   const { getNodesInScope, isShapeNode, getConnectorNodes } = await import("@core/common/selection");
   const scopedNodes = getNodesInScope(scope);
   const shapeNodes = scopedNodes.filter(isShapeNode);
@@ -227,7 +598,7 @@ figma.on("selectionchange", () => {
   sendSelectionState();
 });
 
-figma.ui.onmessage = async (message: UIToMainV2): Promise<void> => {
+figma.ui.onmessage = async (message: UIToMain): Promise<void> => {
   switch (message.type) {
     case "INIT_REQUEST": {
       sendInitState();
@@ -249,7 +620,7 @@ figma.ui.onmessage = async (message: UIToMainV2): Promise<void> => {
 
     case "SET_THEME_MODE": {
       state = { ...state, themeMode: message.themeMode };
-      savePluginStateV2(state);
+      savePluginState(state);
       sendInitState();
       sendActionResult({
         action: "SET_THEME_MODE",
@@ -264,7 +635,7 @@ figma.ui.onmessage = async (message: UIToMainV2): Promise<void> => {
     // ─── System Entries ─────────────────────────────────────────
     case "SYSTEM_ENTRY_UPSERT": {
       upsertSystemEntry(message.entry);
-      savePluginStateV2(state);
+      savePluginState(state);
       sendInitState();
       sendActionResult({
         action: "SYSTEM_ENTRY_UPSERT",
@@ -287,7 +658,7 @@ figma.ui.onmessage = async (message: UIToMainV2): Promise<void> => {
           )
         }
       };
-      savePluginStateV2(state);
+      savePluginState(state);
       sendInitState();
       sendSelectionState();
       sendActionResult({
@@ -306,7 +677,7 @@ figma.ui.onmessage = async (message: UIToMainV2): Promise<void> => {
         .filter((e): e is SystemLegendEntry => Boolean(e))
         .map((e, i) => ({ ...e, order: i + 1 }));
       state = { ...state, systemEntries: ordered };
-      savePluginStateV2(state);
+      savePluginState(state);
       sendInitState();
       return;
     }
@@ -314,7 +685,7 @@ figma.ui.onmessage = async (message: UIToMainV2): Promise<void> => {
     // ─── Shape Entries ──────────────────────────────────────────
     case "SHAPE_ENTRY_UPSERT": {
       upsertShapeEntry(message.entry);
-      savePluginStateV2(state);
+      savePluginState(state);
       sendInitState();
       sendActionResult({
         action: "SHAPE_ENTRY_UPSERT",
@@ -337,7 +708,7 @@ figma.ui.onmessage = async (message: UIToMainV2): Promise<void> => {
           )
         }
       };
-      savePluginStateV2(state);
+      savePluginState(state);
       sendInitState();
       sendSelectionState();
       sendActionResult({
@@ -356,8 +727,24 @@ figma.ui.onmessage = async (message: UIToMainV2): Promise<void> => {
         .filter((e): e is ShapeLegendEntry => Boolean(e))
         .map((e, i) => ({ ...e, order: i + 1 }));
       state = { ...state, shapeEntries: ordered };
-      savePluginStateV2(state);
+      savePluginState(state);
       sendInitState();
+      return;
+    }
+
+    // ─── Legend Sets ────────────────────────────────────────────
+    case "SAVE_LEGEND_SET": {
+      sendActionResult(saveLegendSet(message.name));
+      return;
+    }
+
+    case "LOAD_LEGEND_SET": {
+      sendActionResult(loadLegendSet(message.setId));
+      return;
+    }
+
+    case "DELETE_LEGEND_SET": {
+      sendActionResult(deleteLegendSet(message.setId));
       return;
     }
 
@@ -373,7 +760,7 @@ figma.ui.onmessage = async (message: UIToMainV2): Promise<void> => {
       const system = { ...state.nodeAssignments.system };
       for (const id of nodeIds) system[id] = message.entryId;
       state = { ...state, nodeAssignments: { ...state.nodeAssignments, system } };
-      savePluginStateV2(state);
+      savePluginState(state);
       sendInitState();
       sendSelectionState();
       sendActionResult({
@@ -397,7 +784,7 @@ figma.ui.onmessage = async (message: UIToMainV2): Promise<void> => {
       const shape = { ...state.nodeAssignments.shape };
       for (const id of nodeIds) shape[id] = message.entryId;
       state = { ...state, nodeAssignments: { ...state.nodeAssignments, shape } };
-      savePluginStateV2(state);
+      savePluginState(state);
       sendInitState();
       sendSelectionState();
       sendActionResult({
@@ -417,7 +804,7 @@ figma.ui.onmessage = async (message: UIToMainV2): Promise<void> => {
       const system = { ...state.nodeAssignments.system };
       for (const id of nodeIds) delete system[id];
       state = { ...state, nodeAssignments: { ...state.nodeAssignments, system } };
-      savePluginStateV2(state);
+      savePluginState(state);
       sendInitState();
       sendSelectionState();
       return;
@@ -430,7 +817,7 @@ figma.ui.onmessage = async (message: UIToMainV2): Promise<void> => {
       const shape = { ...state.nodeAssignments.shape };
       for (const id of nodeIds) delete shape[id];
       state = { ...state, nodeAssignments: { ...state.nodeAssignments, shape } };
-      savePluginStateV2(state);
+      savePluginState(state);
       sendInitState();
       sendSelectionState();
       return;
@@ -438,13 +825,64 @@ figma.ui.onmessage = async (message: UIToMainV2): Promise<void> => {
 
     // ─── Apply & Organize ───────────────────────────────────────
     case "APPLY_LEGEND": {
-      const result = await applyLegendV2(message.scope);
+      const result = await applyLegend(message.scope);
       sendActionResult(result);
       sendSelectionState();
       return;
     }
 
-    case "RUN_ORGANIZE_V2": {
+    case "PREVIEW_LEGEND_CONVERSION": {
+      const candidates = createConversionPreview();
+      if (candidates.length === 0) {
+        sendValidationError("PREVIEW_LEGEND_CONVERSION", "Select legend shapes first.");
+        return;
+      }
+      pendingConversionCandidates = candidates;
+      postMessage({ type: "LEGEND_CONVERSION_PREVIEW", candidates });
+      return;
+    }
+
+    case "COMMIT_LEGEND_CONVERSION": {
+      const result = commitLegendConversion(message.decisions);
+      sendActionResult(result);
+      sendSelectionState();
+      return;
+    }
+
+    case "QUICK_CREATE_FROM_SELECTION": {
+      const result = quickCreateFromSelection(message.kind, message.name, message.layoutRole);
+      sendActionResult(result);
+      return;
+    }
+
+    case "IMPORT_SELECTED_STYLE_INTO_ENTRY": {
+      const result = importSelectedStyleIntoEntry(message.kind, message.entryId);
+      sendActionResult(result);
+      return;
+    }
+
+    case "PREVIEW_BULK_APPLY": {
+      const preview = createBulkApplyPreview(message.scope);
+      if (preview.autoMatches.length === 0 && preview.groups.length === 0) {
+        sendValidationError("PREVIEW_BULK_APPLY", "Select diagram shapes first.");
+        return;
+      }
+      if (preview.groups.length === 0) {
+        const result = await commitBulkApply(preview, [], message.scope);
+        sendActionResult(result);
+        return;
+      }
+      postMessage({ type: "BULK_APPLY_PREVIEW", preview });
+      return;
+    }
+
+    case "COMMIT_BULK_APPLY": {
+      const result = await commitBulkApply(message.preview, message.decisions, message.scope);
+      sendActionResult(result);
+      return;
+    }
+
+    case "RUN_ORGANIZE": {
       const { getNodesInScope, isShapeNode, getConnectorNodes } = await import("@core/common/selection");
       const { computeOrganizeLayout } = await import("@core/organize/layout");
 
@@ -475,7 +913,7 @@ figma.ui.onmessage = async (message: UIToMainV2): Promise<void> => {
         pathType: c.connectorLineType
       }));
 
-      // Map V2 config to V1 config for computeOrganizeLayout
+      // Map current config to legacy layout config for computeOrganizeLayout
       const presetMap: Record<string, string> = {
         flow_lr: "process_lr",
         flow_tb: "hierarchy_tb",
@@ -501,7 +939,7 @@ figma.ui.onmessage = async (message: UIToMainV2): Promise<void> => {
       };
 
       // Need a V1-compatible state for computeOrganizeLayout
-      const v1State: import("@shared/types").PluginStateV1 = {
+      const v1State: import("@shared/types").LegacyPluginState = {
         schemaVersion: 1,
         themeMode: state.themeMode,
         shapePresets: [],
@@ -561,7 +999,7 @@ figma.ui.onmessage = async (message: UIToMainV2): Promise<void> => {
       }
 
       sendActionResult({
-        action: "RUN_ORGANIZE_V2",
+        action: "RUN_ORGANIZE",
         severity: changed > 0 ? "info" : "warning",
         message: changed > 0
           ? `Organized ${layout.placements.filter((p) => shapeById.has(p.nodeId)).length} shapes using ${message.config.preset}.`
@@ -574,16 +1012,17 @@ figma.ui.onmessage = async (message: UIToMainV2): Promise<void> => {
     }
 
     // ─── Import/Export ───────────────────────────────────────────
-    case "EXPORT_PRESETS_V2": {
+    case "EXPORT_PRESETS": {
       const bundle = {
         schemaVersion: 2 as const,
-        namespace: "legendflow.manager",
+        namespace: "fragment-flow",
         exportedAt: new Date().toISOString(),
         systemEntries: state.systemEntries,
-        shapeEntries: state.shapeEntries
+        shapeEntries: state.shapeEntries,
+        legendSets: state.legendSets
       };
       sendActionResult({
-        action: "EXPORT_PRESETS_V2",
+        action: "EXPORT_PRESETS",
         severity: "info",
         message: "Export ready.",
         changed: state.systemEntries.length + state.shapeEntries.length,
@@ -593,17 +1032,18 @@ figma.ui.onmessage = async (message: UIToMainV2): Promise<void> => {
       return;
     }
 
-    case "IMPORT_PRESETS_V2": {
+    case "IMPORT_PRESETS": {
       state = {
         ...state,
         systemEntries: message.payload.systemEntries ?? state.systemEntries,
-        shapeEntries: message.payload.shapeEntries ?? state.shapeEntries
+        shapeEntries: message.payload.shapeEntries ?? state.shapeEntries,
+        legendSets: message.payload.legendSets ?? state.legendSets
       };
-      savePluginStateV2(state);
+      savePluginState(state);
       sendInitState();
       sendSelectionState();
       sendActionResult({
-        action: "IMPORT_PRESETS_V2",
+        action: "IMPORT_PRESETS",
         severity: "info",
         message: "Preset bundle imported.",
         changed: (message.payload.systemEntries?.length ?? 0) + (message.payload.shapeEntries?.length ?? 0),
@@ -619,3 +1059,5 @@ figma.ui.onmessage = async (message: UIToMainV2): Promise<void> => {
 
 sendInitState();
 sendSelectionState();
+
+

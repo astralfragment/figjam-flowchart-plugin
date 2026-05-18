@@ -2,8 +2,8 @@ import type {
   ConnectorStylePreset,
   LayoutRole,
   LegendCategory,
-  PluginStateV1,
-  PluginStateV2,
+  LegacyPluginState,
+  PluginState,
   ShapeLegendEntry,
   ShapeStylePreset,
   SystemLegendEntry
@@ -49,7 +49,7 @@ export const DEFAULT_CATEGORY: LegendCategory = {
   semanticRole: "process"
 };
 
-export const defaultState = (): PluginStateV1 => ({
+export const defaultLegacyState = (): LegacyPluginState => ({
   schemaVersion: 1,
   themeMode: "light",
   shapePresets: [DEFAULT_SHAPE_PRESET],
@@ -58,7 +58,7 @@ export const defaultState = (): PluginStateV1 => ({
   nodeCategoryAssignments: {}
 });
 
-// ─── V2 Defaults ────────────────────────────────────────────────────
+// ─── Active Defaults ────────────────────────────────────────────────
 
 export const LAYOUT_ROLE_DESCRIPTIONS: Record<LayoutRole, string> = {
   entry: "Flow start — pinned to first position",
@@ -110,10 +110,12 @@ export const DEFAULT_SHAPE_ENTRIES: ShapeLegendEntry[] = [
 
 export const DEFAULT_SYSTEM_ENTRIES: SystemLegendEntry[] = [];
 
-export const defaultStateV2 = (): PluginStateV2 => ({
+export const defaultState = (): PluginState => ({
   schemaVersion: 2,
   themeMode: "light",
   systemEntries: [...DEFAULT_SYSTEM_ENTRIES],
   shapeEntries: DEFAULT_SHAPE_ENTRIES.map(e => ({ ...e })),
+  legendSets: [],
   nodeAssignments: { system: {}, shape: {} }
 });
+

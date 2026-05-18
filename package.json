@@ -1,8 +1,8 @@
 {
-  "name": "flowforge-figjam",
+  "name": "fragment-flow-figjam",
   "version": "0.2.0",
   "private": true,
-  "description": "FlowForge — smart flowchart organizer for FigJam",
+  "description": "Fragment Flow — smart flowchart organizer for FigJam",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -16,8 +16,8 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@fontsource/ibm-plex-mono": "^5.1.1",
-    "@fontsource/ibm-plex-sans": "^5.1.1",
+    "@fontsource/geist-mono": "^5.2.8",
+    "@fontsource/merriweather": "^5.2.11",
     "@fontsource/outfit": "^5.2.8",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"

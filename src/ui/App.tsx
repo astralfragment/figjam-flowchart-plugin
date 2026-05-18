@@ -1,23 +1,29 @@
 import { useEffect, useState } from "react";
 import type { ChangeEvent } from "react";
-import type { MainToUIV2, UIToMainV2 } from "@shared/contracts";
-import { LegendPanelV2 } from "@ui/panels/LegendPanelV2";
-import { OrganizePanelV2 } from "@ui/panels/OrganizePanelV2";
+import type { MainToUI, UIToMain } from "@shared/contracts";
+import { LegendPanel } from "@ui/panels/LegendPanel";
+import { OrganizePanel } from "@ui/panels/OrganizePanel";
 import type {
   ActionResult,
   ApplyScope,
-  OrganizeConfigV2,
-  OrganizeDiagnosticsV2,
-  PluginStateV2,
-  PresetBundleV2,
-  SelectionSummaryV2,
+  BulkApplyDecision,
+  BulkApplyPreview,
+  LegendCandidateKind,
+  LegendConversionDecision,
+  LegendConversionCandidate,
+  LayoutRole,
+  OrganizeConfig,
+  OrganizeDiagnostics,
+  PluginState,
+  PresetBundle,
+  SelectionSummary,
   ThemeMode
 } from "@shared/types";
 
 const tabs = ["legend", "organize"] as const;
 type TabKey = (typeof tabs)[number];
 
-const defaultSelectionV2: SelectionSummaryV2 = {
+const defaultSelection: SelectionSummary = {
   total: 0,
   shapes: 0,
   connectors: 0,
@@ -28,7 +34,7 @@ const defaultSelectionV2: SelectionSummaryV2 = {
   shapeBreakdown: []
 };
 
-const defaultOrganizeConfigV2: OrganizeConfigV2 = {
+const defaultOrganizeConfig: OrganizeConfig = {
   preset: "flow_lr",
   spacingValue: 50,
   connectorStyle: "clean",
@@ -38,7 +44,7 @@ const defaultOrganizeConfigV2: OrganizeConfigV2 = {
   autoFixCrossings: true
 };
 
-const WINDOW_STORAGE_KEY = "flowforge.window-size.v2";
+const WINDOW_STORAGE_KEY = "fragment-flow.window-size";
 const DEFAULT_WINDOW_SIZE = { width: 560, height: 820 };
 const clamp = (value: number, min: number, max: number): number =>
   Math.min(max, Math.max(min, value));
@@ -64,7 +70,7 @@ const saveStoredWindowSize = (width: number, height: number): void => {
   }
 };
 
-const post = (message: UIToMainV2): void => {
+const post = (message: UIToMain): void => {
   parent.postMessage({ pluginMessage: message }, "*");
 };
 
@@ -82,29 +88,43 @@ const downloadJson = (filename: string, data: string): void => {
 
 export const App = (): JSX.Element => {
   const [activeTab, setActiveTab] = useState<TabKey>("legend");
-  const [state, setState] = useState<PluginStateV2 | null>(null);
-  const [selection, setSelection] = useState<SelectionSummaryV2>(defaultSelectionV2);
+  const [state, setState] = useState<PluginState | null>(null);
+  const [selection, setSelection] = useState<SelectionSummary>(defaultSelection);
   const [lastResult, setLastResult] = useState<ActionResult | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
-  const [organizeConfig, setOrganizeConfig] = useState<OrganizeConfigV2>(defaultOrganizeConfigV2);
-  const [organizeDiagnostics, setOrganizeDiagnostics] = useState<OrganizeDiagnosticsV2 | null>(null);
+  const [organizeConfig, setOrganizeConfig] = useState<OrganizeConfig>(defaultOrganizeConfig);
+  const [organizeDiagnostics, setOrganizeDiagnostics] = useState<OrganizeDiagnostics | null>(null);
   const [windowSize, setWindowSize] = useState(loadStoredWindowSize);
+  const [conversionCandidates, setConversionCandidates] = useState<LegendConversionCandidate[]>([]);
+  const [bulkApplyPreview, setBulkApplyPreview] = useState<BulkApplyPreview | null>(null);
 
   useEffect(() => {
-    window.onmessage = (event: MessageEvent<{ pluginMessage: MainToUIV2 }>) => {
+    window.onmessage = (event: MessageEvent<{ pluginMessage: MainToUI }>) => {
       const msg = event.data.pluginMessage;
       if (!msg) return;
-      if (msg.type === "INIT_STATE_V2") {
+      if (msg.type === "INIT_STATE") {
         setState(msg.state);
         setValidationError(null);
       }
-      if (msg.type === "SELECTION_STATE_V2") {
+      if (msg.type === "SELECTION_STATE") {
         setSelection(msg.selection);
       }
       if (msg.type === "ACTION_RESULT") {
         setLastResult(msg.result);
         setValidationError(null);
-        if (msg.result.exportJson) downloadJson("flowforge-presets.json", msg.result.exportJson);
+        setConversionCandidates([]);
+        setBulkApplyPreview(null);
+        if (msg.result.exportJson) downloadJson("fragment-flow-presets.json", msg.result.exportJson);
+      }
+      if (msg.type === "LEGEND_CONVERSION_PREVIEW") {
+        setConversionCandidates(msg.candidates);
+        setBulkApplyPreview(null);
+        setValidationError(null);
+      }
+      if (msg.type === "BULK_APPLY_PREVIEW") {
+        setBulkApplyPreview(msg.preview);
+        setConversionCandidates([]);
+        setValidationError(null);
       }
       if (msg.type === "VALIDATION_ERROR") {
         setValidationError(msg.error.message);
@@ -141,7 +161,7 @@ export const App = (): JSX.Element => {
     const reader = new FileReader();
     reader.onload = () => {
       try {
-        post({ type: "IMPORT_PRESETS_V2", payload: JSON.parse(String(reader.result)) as PresetBundleV2 });
+        post({ type: "IMPORT_PRESETS", payload: JSON.parse(String(reader.result)) as PresetBundle });
       } catch {
         setValidationError("Could not parse JSON bundle.");
       }
@@ -163,7 +183,7 @@ export const App = (): JSX.Element => {
   };
 
   if (!state) {
-    return <main className="app loading">FlowForge loading&hellip;</main>;
+    return <main className="app loading">Fragment Flow loading&hellip;</main>;
   }
 
   return (
@@ -171,20 +191,14 @@ export const App = (): JSX.Element => {
       {/* ── Header ── */}
       <header className="topbar">
         <div className="brand">
-          <svg className="brand-mark" viewBox="0 0 20 20" width="20" height="20" fill="none">
-            <rect x="1" y="1" width="7" height="7" rx="2" fill="var(--acc)" opacity=".85" />
-            <rect x="12" y="1" width="7" height="7" rx="2" fill="var(--acc)" opacity=".5" />
-            <rect x="1" y="12" width="7" height="7" rx="2" fill="var(--acc)" opacity=".5" />
-            <rect x="12" y="12" width="7" height="7" rx="2" fill="var(--acc)" opacity=".3" />
-            <path d="M8 4.5h4M4.5 8v4M15.5 8v4M8 15.5h4" stroke="var(--acc)" strokeWidth="1.2" strokeLinecap="round" opacity=".7" />
-          </svg>
+          <span className="brand-mark" aria-hidden="true">F</span>
           <div className="brand-text">
-            <h1>FlowForge</h1>
+            <h1>Fragment Flow</h1>
             <span className="brand-tagline">Diagram organizer</span>
           </div>
         </div>
         <div className="topbar-actions">
-          <button className="sm" onClick={() => post({ type: "EXPORT_PRESETS_V2" })} title="Export legend presets as JSON">
+          <button className="sm" onClick={() => post({ type: "EXPORT_PRESETS" })} title="Export legend presets as JSON">
             Export
           </button>
           <label className="file-input">
@@ -216,28 +230,45 @@ export const App = (): JSX.Element => {
       {/* ── Panel ── */}
       <section className="panel-area" role="tabpanel">
         {activeTab === "legend" && (
-          <LegendPanelV2
+          <LegendPanel
             systemEntries={state.systemEntries}
             shapeEntries={state.shapeEntries}
+            legendSets={state.legendSets}
+            activeLegendSetId={state.activeLegendSetId}
             selection={selection}
             onSystemUpsert={(entry) => post({ type: "SYSTEM_ENTRY_UPSERT", entry })}
             onSystemDelete={(id) => post({ type: "SYSTEM_ENTRY_DELETE", entryId: id })}
             onShapeUpsert={(entry) => post({ type: "SHAPE_ENTRY_UPSERT", entry })}
             onShapeDelete={(id) => post({ type: "SHAPE_ENTRY_DELETE", entryId: id })}
+            onSaveLegendSet={(name) => post({ type: "SAVE_LEGEND_SET", name })}
+            onLoadLegendSet={(setId) => post({ type: "LOAD_LEGEND_SET", setId })}
+            onDeleteLegendSet={(setId) => post({ type: "DELETE_LEGEND_SET", setId })}
             onAssignSystem={(entryId, nodeIds) => post({ type: "ASSIGN_SYSTEM", entryId, nodeIds })}
             onAssignShape={(entryId, nodeIds) => post({ type: "ASSIGN_SHAPE", entryId, nodeIds })}
             onUnassignSystem={(nodeIds) => post({ type: "UNASSIGN_SYSTEM", nodeIds })}
             onUnassignShape={(nodeIds) => post({ type: "UNASSIGN_SHAPE", nodeIds })}
             onApplyLegend={(scope: ApplyScope) => post({ type: "APPLY_LEGEND", scope })}
+            conversionCandidates={conversionCandidates}
+            bulkApplyPreview={bulkApplyPreview}
+            onPreviewLegendConversion={() => post({ type: "PREVIEW_LEGEND_CONVERSION" })}
+            onCommitLegendConversion={(decisions: LegendConversionDecision[]) => post({ type: "COMMIT_LEGEND_CONVERSION", decisions })}
+            onQuickCreateFromSelection={(kind: Exclude<LegendCandidateKind, "ignore">, name: string, layoutRole: LayoutRole) => post({ type: "QUICK_CREATE_FROM_SELECTION", kind, name, layoutRole })}
+            onImportSelectedStyle={(kind: Exclude<LegendCandidateKind, "ignore">, entryId: string) => post({ type: "IMPORT_SELECTED_STYLE_INTO_ENTRY", kind, entryId })}
+            onPreviewBulkApply={() => post({ type: "PREVIEW_BULK_APPLY", scope: "selection" })}
+            onCommitBulkApply={(preview: BulkApplyPreview, decisions: BulkApplyDecision[]) => post({ type: "COMMIT_BULK_APPLY", preview, decisions, scope: "selection" })}
+            onDismissReview={() => {
+              setConversionCandidates([]);
+              setBulkApplyPreview(null);
+            }}
           />
         )}
 
         {activeTab === "organize" && (
-          <OrganizePanelV2
+          <OrganizePanel
             config={organizeConfig}
             diagnostics={organizeDiagnostics}
             onConfigChange={setOrganizeConfig}
-            onRun={() => post({ type: "RUN_ORGANIZE_V2", config: organizeConfig, scope: "selection" })}
+            onRun={() => post({ type: "RUN_ORGANIZE", config: organizeConfig, scope: "selection" })}
           />
         )}
       </section>
@@ -264,3 +295,5 @@ export const App = (): JSX.Element => {
     </main>
   );
 };
+
+

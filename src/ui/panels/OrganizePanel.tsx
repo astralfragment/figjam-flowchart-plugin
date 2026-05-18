@@ -3,96 +3,53 @@ import type { JSX } from "react";
 import { NumericInput } from "@ui/components/FormFields";
 import type {
   ConnectorStyleOption,
-  LayoutPresetV2,
-  OrganizeConfigV2,
-  OrganizeDiagnosticsV2
+  LayoutPreset,
+  OrganizeConfig,
+  OrganizeDiagnostics
 } from "@shared/types";
 
-interface OrganizePanelV2Props {
-  config: OrganizeConfigV2;
-  diagnostics: OrganizeDiagnosticsV2 | null;
-  onConfigChange: (config: OrganizeConfigV2) => void;
+interface OrganizePanelProps {
+  config: OrganizeConfig;
+  diagnostics: OrganizeDiagnostics | null;
+  onConfigChange: (config: OrganizeConfig) => void;
   onRun: () => void;
 }
 
 const PRESET_OPTIONS: {
-  value: LayoutPresetV2;
+  value: LayoutPreset;
   title: string;
   description: string;
-  icon: JSX.Element;
+  pattern: "flow-x" | "flow-y" | "tree" | "lanes" | "grid";
 }[] = [
   {
     value: "flow_lr",
     title: "Flow \u2192",
     description: "Left-to-right process maps and operational workflows.",
-    icon: (
-      <svg viewBox="0 0 48 24" width="48" height="24">
-        <rect x="1" y="6" width="10" height="12" rx="2" fill="var(--teal)" opacity=".25" stroke="var(--teal)" strokeWidth="1" />
-        <line x1="12" y1="12" x2="18" y2="12" stroke="var(--t2)" strokeWidth="1" markerEnd="url(#arrowV2)" />
-        <rect x="19" y="6" width="10" height="12" rx="2" fill="var(--teal)" opacity=".25" stroke="var(--teal)" strokeWidth="1" />
-        <line x1="30" y1="12" x2="36" y2="12" stroke="var(--t2)" strokeWidth="1" markerEnd="url(#arrowV2)" />
-        <rect x="37" y="6" width="10" height="12" rx="2" fill="var(--teal)" opacity=".25" stroke="var(--teal)" strokeWidth="1" />
-      </svg>
-    )
+    pattern: "flow-x"
   },
   {
     value: "flow_tb",
     title: "Flow \u2193",
     description: "Top-to-bottom sequential process with vertical layering.",
-    icon: (
-      <svg viewBox="0 0 24 48" width="24" height="48">
-        <rect x="4" y="1" width="16" height="10" rx="2" fill="var(--teal)" opacity=".25" stroke="var(--teal)" strokeWidth="1" />
-        <line x1="12" y1="12" x2="12" y2="18" stroke="var(--t2)" strokeWidth="1" />
-        <rect x="4" y="19" width="16" height="10" rx="2" fill="var(--teal)" opacity=".25" stroke="var(--teal)" strokeWidth="1" />
-        <line x1="12" y1="30" x2="12" y2="36" stroke="var(--t2)" strokeWidth="1" />
-        <rect x="4" y="37" width="16" height="10" rx="2" fill="var(--teal)" opacity=".25" stroke="var(--teal)" strokeWidth="1" />
-      </svg>
-    )
+    pattern: "flow-y"
   },
   {
     value: "tree",
     title: "Tree",
     description: "Top-down branching with decision/fork separation and tree balancing.",
-    icon: (
-      <svg viewBox="0 0 48 36" width="48" height="36">
-        <rect x="17" y="1" width="14" height="8" rx="2" fill="var(--acc)" opacity=".2" stroke="var(--acc)" strokeWidth="1" />
-        <line x1="20" y1="10" x2="10" y2="18" stroke="var(--t2)" strokeWidth="1" />
-        <line x1="28" y1="10" x2="38" y2="18" stroke="var(--t2)" strokeWidth="1" />
-        <rect x="2" y="19" width="14" height="8" rx="2" fill="var(--teal)" opacity=".25" stroke="var(--teal)" strokeWidth="1" />
-        <rect x="32" y="19" width="14" height="8" rx="2" fill="var(--teal)" opacity=".25" stroke="var(--teal)" strokeWidth="1" />
-      </svg>
-    )
+    pattern: "tree"
   },
   {
     value: "swimlane",
     title: "Swimlane",
     description: "Keeps system lanes aligned, reduces crossings within lanes.",
-    icon: (
-      <svg viewBox="0 0 48 32" width="48" height="32">
-        <line x1="16" y1="0" x2="16" y2="32" stroke="var(--b2)" strokeWidth="1" strokeDasharray="2,2" />
-        <line x1="32" y1="0" x2="32" y2="32" stroke="var(--b2)" strokeWidth="1" strokeDasharray="2,2" />
-        <rect x="3" y="4" width="10" height="6" rx="1.5" fill="var(--teal)" opacity=".25" stroke="var(--teal)" strokeWidth="1" />
-        <rect x="3" y="14" width="10" height="6" rx="1.5" fill="var(--teal)" opacity=".25" stroke="var(--teal)" strokeWidth="1" />
-        <rect x="19" y="8" width="10" height="6" rx="1.5" fill="var(--acc)" opacity=".2" stroke="var(--acc)" strokeWidth="1" />
-        <rect x="35" y="4" width="10" height="6" rx="1.5" fill="var(--teal)" opacity=".25" stroke="var(--teal)" strokeWidth="1" />
-        <rect x="35" y="18" width="10" height="6" rx="1.5" fill="var(--teal)" opacity=".25" stroke="var(--teal)" strokeWidth="1" />
-      </svg>
-    )
+    pattern: "lanes"
   },
   {
     value: "compact",
     title: "Compact",
     description: "Tight grid for smaller board footprint.",
-    icon: (
-      <svg viewBox="0 0 36 28" width="36" height="28">
-        <rect x="1" y="1" width="10" height="8" rx="1.5" fill="var(--teal)" opacity=".25" stroke="var(--teal)" strokeWidth="1" />
-        <rect x="13" y="1" width="10" height="8" rx="1.5" fill="var(--teal)" opacity=".25" stroke="var(--teal)" strokeWidth="1" />
-        <rect x="25" y="1" width="10" height="8" rx="1.5" fill="var(--teal)" opacity=".25" stroke="var(--teal)" strokeWidth="1" />
-        <rect x="1" y="11" width="10" height="8" rx="1.5" fill="var(--teal)" opacity=".25" stroke="var(--teal)" strokeWidth="1" />
-        <rect x="13" y="11" width="10" height="8" rx="1.5" fill="var(--teal)" opacity=".25" stroke="var(--teal)" strokeWidth="1" />
-        <rect x="25" y="11" width="10" height="8" rx="1.5" fill="var(--teal)" opacity=".25" stroke="var(--teal)" strokeWidth="1" />
-      </svg>
-    )
+    pattern: "grid"
   }
 ];
 
@@ -113,16 +70,16 @@ const spacingLabelIndex = (value: number): number => {
   return 1;
 };
 
-export const OrganizePanelV2 = ({
+export const OrganizePanel = ({
   config,
   diagnostics,
   onConfigChange,
   onRun
-}: OrganizePanelV2Props): JSX.Element => {
+}: OrganizePanelProps): JSX.Element => {
   const [showAdvanced, setShowAdvanced] = useState(false);
 
   return (
-    <div className="panel organize-panel-v2">
+    <div className="panel organize-panel">
       {/* Layout Preset */}
       <div className="section-hd">
         <div>
@@ -138,7 +95,14 @@ export const OrganizePanelV2 = ({
             className={`layout-preset-card ${config.preset === option.value ? "selected" : ""}`}
             onClick={() => onConfigChange({ ...config, preset: option.value })}
           >
-            <div className="preset-icon">{option.icon}</div>
+            <span className={`preset-glyph preset-glyph--${option.pattern}`} aria-hidden="true">
+              <span />
+              <span />
+              <span />
+              <span />
+              <span />
+              <span />
+            </span>
             <strong>{option.title}</strong>
             <small>{option.description}</small>
           </button>
@@ -257,15 +221,8 @@ export const OrganizePanelV2 = ({
           </div>
         </div>
       )}
-
-      {/* SVG defs for arrows */}
-      <svg width="0" height="0" style={{ position: "absolute" }}>
-        <defs>
-          <marker id="arrowV2" markerWidth="6" markerHeight="4" refX="5" refY="2" orient="auto">
-            <path d="M0,0 L6,2 L0,4" fill="var(--t2)" />
-          </marker>
-        </defs>
-      </svg>
     </div>
   );
 };
+
+

@@ -1,59 +1,63 @@
-import { NAMESPACE_KEY, STATE_KEY, defaultState, defaultStateV2 } from "@shared/defaults";
-import type { PluginStateV1, PluginStateV2, PresetBundleV1 } from "@shared/types";
-import { migrateV1toV2, sanitizeBundle, sanitizeState, sanitizeStateV2, toPresetBundle } from "./schema";
+import { NAMESPACE_KEY, STATE_KEY, defaultLegacyState, defaultState } from "@shared/defaults";
+import type { LegacyPluginState, LegacyPresetBundle, PluginState } from "@shared/types";
+import {
+  migrateLegacyState,
+  sanitizeBundle,
+  sanitizeLegacyState,
+  sanitizeState,
+  toPresetBundle
+} from "./schema";
 
-const storageKey = `${NAMESPACE_KEY}.${STATE_KEY}`;
-const storageKeyV2 = `${NAMESPACE_KEY}.state.v2`;
+const legacyStorageKey = `${NAMESPACE_KEY}.${STATE_KEY}`;
+const currentStorageKey = `${NAMESPACE_KEY}.state.v2`;
 
-export const loadPluginState = (): PluginStateV1 => {
-  const raw = figma.root.getPluginData(storageKey);
+export const loadLegacyPluginState = (): LegacyPluginState => {
+  const raw = figma.root.getPluginData(legacyStorageKey);
   if (!raw) {
-    return defaultState();
+    return defaultLegacyState();
   }
 
   try {
-    return sanitizeState(JSON.parse(raw));
+    return sanitizeLegacyState(JSON.parse(raw));
   } catch (_error) {
-    return defaultState();
+    return defaultLegacyState();
   }
 };
 
-export const savePluginState = (state: PluginStateV1): void => {
-  figma.root.setPluginData(storageKey, JSON.stringify(state));
+export const saveLegacyPluginState = (state: LegacyPluginState): void => {
+  figma.root.setPluginData(legacyStorageKey, JSON.stringify(state));
 };
 
-export const loadPluginStateV2 = (): PluginStateV2 => {
-  const rawV2 = figma.root.getPluginData(storageKeyV2);
-  if (rawV2) {
+export const loadPluginState = (): PluginState => {
+  const rawCurrent = figma.root.getPluginData(currentStorageKey);
+  if (rawCurrent) {
     try {
-      return sanitizeStateV2(JSON.parse(rawV2));
+      return sanitizeState(JSON.parse(rawCurrent));
     } catch (_error) {
-      // fall through to V1 migration
+      // fall through to legacy migration
     }
   }
 
-  // Try migrating from V1
-  const rawV1 = figma.root.getPluginData(storageKey);
-  if (rawV1) {
+  const rawLegacy = figma.root.getPluginData(legacyStorageKey);
+  if (rawLegacy) {
     try {
-      const v1 = sanitizeState(JSON.parse(rawV1));
-      return migrateV1toV2(v1);
+      return migrateLegacyState(sanitizeLegacyState(JSON.parse(rawLegacy)));
     } catch (_error) {
       // fall through to defaults
     }
   }
 
-  return defaultStateV2();
+  return defaultState();
 };
 
-export const savePluginStateV2 = (state: PluginStateV2): void => {
-  figma.root.setPluginData(storageKeyV2, JSON.stringify(state));
+export const savePluginState = (state: PluginState): void => {
+  figma.root.setPluginData(currentStorageKey, JSON.stringify(state));
 };
 
-export const exportStateBundle = (state: PluginStateV1): PresetBundleV1 => {
+export const exportStateBundle = (state: LegacyPluginState): LegacyPresetBundle => {
   return toPresetBundle(state, NAMESPACE_KEY);
 };
 
-export const importStateBundle = (bundle: unknown): PresetBundleV1 | null => {
+export const importStateBundle = (bundle: unknown): LegacyPresetBundle | null => {
   return sanitizeBundle(bundle);
 };

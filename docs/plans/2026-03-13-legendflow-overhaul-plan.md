@@ -875,14 +875,14 @@ git commit -m "feat: V2 message protocol with unified legend and scan messages"
 
 ---
 
-## Task 11: Main Plugin Runtime (code.ts)
+## Task 11: Main Plugin Runtime (`fragmentFlowPlugin.ts`)
 
 **Files:**
-- Modify: `src/main/code.ts`
+- Modify: `src/main/fragmentFlowPlugin.ts`
 
 **Step 1: Update message handler**
 
-This is a large refactor of `code.ts`. Key changes:
+This is a large refactor of the main plugin runtime. Key changes:
 - Replace all V1 message handlers with V2 equivalents
 - On `INIT_REQUEST`: load state, detect V1 and migrate to V2
 - Add `SYSTEM_ENTRY_UPSERT/DELETE`, `SHAPE_ENTRY_UPSERT/DELETE` handlers
@@ -898,7 +898,7 @@ This is a large refactor of `code.ts`. Key changes:
 **Step 3: Commit**
 
 ```bash
-git add src/main/code.ts
+git add src/main/fragmentFlowPlugin.ts
 git commit -m "feat: V2 plugin runtime with unified legend and enhanced organize"
 ```
 

@@ -1,6 +1,6 @@
 export type ApplyScope = "selection" | "board";
 export type ThemeMode = "light" | "dark";
-export type LayoutPreset = "process_lr" | "decision_tree_tb" | "hierarchy_tb" | "swimlane_category";
+export type LegacyLayoutPreset = "process_lr" | "decision_tree_tb" | "hierarchy_tb" | "swimlane_category";
 export type LegendSemanticRole = "process" | "decision" | "terminator" | "data" | "annotation";
 export type ConnectorPathType = "ELBOWED" | "STRAIGHT" | "CURVED";
 export type RoutingMode = "auto" | "safe" | "moderate" | "aggressive";
@@ -42,7 +42,7 @@ export type FigJamShapeType =
   | "SPEECH_BUBBLE"
   | "INTERNAL_STORAGE";
 
-// ─── V2 Types ───────────────────────────────────────────────────────
+// ─── Active Types ───────────────────────────────────────────────────
 
 export type LayoutRole =
   | "entry" | "exit" | "process" | "decision"
@@ -50,7 +50,7 @@ export type LayoutRole =
   | "manual" | "subprocess" | "annotation"
   | "delay" | "default";
 
-export type LayoutPresetV2 = "flow_lr" | "flow_tb" | "tree" | "swimlane" | "compact";
+export type LayoutPreset = "flow_lr" | "flow_tb" | "tree" | "swimlane" | "compact";
 
 export type ConnectorStyleOption = "clean" | "smooth" | "direct";
 
@@ -97,8 +97,17 @@ export interface NodeAssignments {
   shape: Record<string, string>;
 }
 
-export interface OrganizeConfigV2 {
-  preset: LayoutPresetV2;
+export interface LegendSet {
+  id: string;
+  name: string;
+  createdAt: string;
+  updatedAt: string;
+  systemEntries: SystemLegendEntry[];
+  shapeEntries: ShapeLegendEntry[];
+}
+
+export interface OrganizeConfig {
+  preset: LayoutPreset;
   spacingValue: number;
   connectorStyle: ConnectorStyleOption;
   nodeGap: number;
@@ -107,20 +116,23 @@ export interface OrganizeConfigV2 {
   autoFixCrossings: boolean;
 }
 
-export interface PluginStateV2 {
+export interface PluginState {
   schemaVersion: 2;
   themeMode: ThemeMode;
   systemEntries: SystemLegendEntry[];
   shapeEntries: ShapeLegendEntry[];
+  legendSets: LegendSet[];
+  activeLegendSetId?: string;
   nodeAssignments: NodeAssignments;
 }
 
-export interface PresetBundleV2 {
+export interface PresetBundle {
   schemaVersion: 2;
   namespace: string;
   exportedAt: string;
   systemEntries: SystemLegendEntry[];
   shapeEntries: ShapeLegendEntry[];
+  legendSets?: LegendSet[];
 }
 
 export interface DiagramScanResult {
@@ -133,7 +145,7 @@ export interface DiagramScanResult {
   crossingCount: number;
 }
 
-export interface OrganizeDiagnosticsV2 {
+export interface OrganizeDiagnostics {
   componentCount: number;
   decisionsDetected: number;
   mergesDetected: number;
@@ -144,7 +156,7 @@ export interface OrganizeDiagnosticsV2 {
   connectorsProcessed: number;
 }
 
-export interface SelectionSummaryV2 {
+export interface SelectionSummary {
   total: number;
   shapes: number;
   connectors: number;
@@ -153,6 +165,64 @@ export interface SelectionSummaryV2 {
   unmappedCount: number;
   systemBreakdown: { entryId: string; name: string; count: number }[];
   shapeBreakdown: { entryId: string; name: string; role: LayoutRole; count: number }[];
+  quickCreatePreview?: LegendConversionCandidate;
+}
+
+export type LegendCandidateKind = "system" | "shape" | "ignore";
+
+export interface LegendConversionCandidate {
+  id: string;
+  sourceNodeId: string;
+  label: string;
+  suggestedKind: Exclude<LegendCandidateKind, "ignore">;
+  shapeType: FigJamShapeType;
+  layoutRole: LayoutRole;
+  fill: string;
+  stroke: string;
+  strokeWidth: number;
+  textColor: string;
+  textSize: number;
+  textWeight: number;
+  opacity: number;
+}
+
+export interface LegendConversionDecision {
+  candidateId: string;
+  kind: LegendCandidateKind;
+  name: string;
+  layoutRole: LayoutRole;
+}
+
+export interface BulkApplyAutoMatch {
+  nodeId: string;
+  shapeEntryId?: string;
+  systemEntryId?: string;
+}
+
+export interface BulkApplyGroup {
+  id: string;
+  nodeIds: string[];
+  count: number;
+  sampleLabel: string;
+  shapeType: FigJamShapeType;
+  fill: string;
+  stroke: string;
+  textColor: string;
+  defaultShapeEntryId?: string;
+  defaultSystemEntryId?: string;
+  shapeCandidates: { entryId: string; name: string; role: LayoutRole }[];
+  systemCandidates: { entryId: string; name: string }[];
+}
+
+export interface BulkApplyPreview {
+  autoMatches: BulkApplyAutoMatch[];
+  groups: BulkApplyGroup[];
+}
+
+export interface BulkApplyDecision {
+  groupId: string;
+  shapeEntryId?: string;
+  systemEntryId?: string;
 }
 
 // ─── V1 Types (kept for migration) ─────────────────────────────────
@@ -210,8 +280,8 @@ export interface LegendCategory {
   semanticRole?: LegendSemanticRole;
 }
 
-export interface OrganizeConfig {
-  preset: LayoutPreset;
+export interface LegacyOrganizeConfig {
+  preset: LegacyLayoutPreset;
   routingMode: RoutingMode;
   spacingMode: OrganizeSpacingMode;
   connectorHandling: ConnectorHandlingMode;
@@ -220,7 +290,7 @@ export interface OrganizeConfig {
   alignStrict: boolean;
 }
 
-export interface PluginStateV1 {
+export interface LegacyPluginState {
   schemaVersion: 1;
   themeMode: ThemeMode;
   shapePresets: ShapeStylePreset[];
@@ -229,7 +299,7 @@ export interface PluginStateV1 {
   nodeCategoryAssignments: Record<string, string>;
 }
 
-export interface PresetBundleV1 {
+export interface LegacyPresetBundle {
   schemaVersion: 1;
   namespace: string;
   exportedAt: string;
@@ -245,7 +315,7 @@ export interface CategoryBreakdownItem {
   assignedCount: number;
 }
 
-export interface SelectionSummary {
+export interface LegacySelectionSummary {
   total: number;
   shapes: number;
   connectors: number;
@@ -294,3 +364,4 @@ export interface OrganizeComputationResult {
     skipped: number;
   };
 }
+

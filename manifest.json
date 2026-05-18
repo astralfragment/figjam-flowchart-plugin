@@ -1,8 +1,8 @@
 {
-  "name": "FlowForge",
-  "id": "flowforge-figjam",
+  "name": "Fragment Flow",
+  "id": "fragment-flow-figjam",
   "api": "1.0.0",
-  "main": "dist/code.js",
+  "main": "dist/fragment-flow.js",
   "ui": "dist/ui.html",
   "editorType": ["figjam"],
   "enableProposedApi": false,
